@@ -17,6 +17,14 @@ single `UIState` struct. Multiple instances are supported, enabling independent 
 
 Display dimensions are specified at runtime through `UIInit`, so a single compilation can drive displays of different sizes.
 
+## Demo
+
+This is a demo running on an ESP32-WROOM-32 board and using a PCD8544 display.
+The frame rate of the GIF does not do the demo justice, the animations are
+alot smoother when looking at the display in front of you.
+
+![demo gif](https://raw.githubusercontent.com/usrnatc/nc_ui/refs/heads/main/demo/demo.gif)
+
 ## Installation
 
 Copy `nc_ui.h` into your project.
