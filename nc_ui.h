@@ -2193,7 +2193,7 @@ DrawStrAligned(
         } break;
 
         case 1: {
-            X = X0 + ((X1 - X0) - Width) / 2; 
+            X = X0 + (((X1 - X0) - Width) >> 1);
         } break;
 
         case 2: {
@@ -2296,7 +2296,7 @@ DrawUI(UIState* State, u8* Buffer)
                         ParentAxis = State->Boxes[Box->Parent].ChildLayoutAxis;
 
                     if (ParentAxis == AXIS_2D_Y) {
-                        u8 MidY = Y0 + (Y1 - Y0) / 2;                           // FIXME: divide is slow
+                        u8 MidY = Y0 + ((Y1 - Y0) >> 1);
 
                         if ((Box->Flags & UI_BOX_FLAG_DRAW_TEXT) && Box->String) {
                             u8 TextWidth = FontStrWidth(Box->String);
@@ -2314,7 +2314,7 @@ DrawUI(UIState* State, u8* Buffer)
                                 DrawHorzLine(State, Buffer, X0, X1, MidY);
                         }
                     } else {
-                        u8 MidX = X0 + (X1 - X0) / 2;
+                        u8 MidX = X0 + ((X1 - X0) >> 1);
 
                         if (Box->Flags & UI_BOX_FLAG_INVERTED)
                             ClearVertLine(State, Buffer, MidX, Y0, Y1);
@@ -2328,7 +2328,7 @@ DrawUI(UIState* State, u8* Buffer)
                     u8 TextY = Rect.Y0;
 
                     if (BoxHeight > NCUI_FONT_GLYPH_HEIGHT)
-                        TextY += (BoxHeight - NCUI_FONT_GLYPH_HEIGHT) / 2;
+                        TextY += (BoxHeight - NCUI_FONT_GLYPH_HEIGHT) >> 1;
 
                     u8 TextX = Rect.X0 + 1;
 
