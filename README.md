@@ -164,6 +164,8 @@ UILabel(&ui, "Text");                     // static text
 UIButton(&ui, "Press me");                // clickable bordered box
 UICheckBox(&ui, "Toggle", &boolValue);    // toggles b32 on click
 UIMenuEntry(&ui, "Item", isSelected);     // full-width row, inverted when selected
+UIDivider(&ui, "Optional Label");         // divide list of boxes, skipped by navigation
+UIDivider(&ui, NULL);                     // only draw the dividing line with no label
 ```
 
 ### Direct drawing
@@ -223,7 +225,7 @@ inside `UILayoutRoot`: static sizes, upwards-dependent, downwards-dependent, and
 
 ### New box flags
 
-`UIBoxFlags` is a `u16` with bits 0 - 10 currently used. Bits 11 - 15 are available. 
+`UIBoxFlags` is a `u16` with bits 0 - 11 currently used. Bits 12 - 15 are available. 
 Add rendering behaviour for new flags in `DrawUI`.
 
 ### Animation
@@ -246,7 +248,7 @@ u8 offset = UIAnimate(&ui, key, target, initial, rateShift);
 When the remaining distance is less than the step, it snaps by ±1.
 
 Animation nodes are allocated from a fixed pool and automatically freed 
-when not touched for `UI_STALE_FRAMES` build cycles.
+when not touched for `NCUI_STALE_FRAMES` build cycles.
 
 ## Examples
 
@@ -357,7 +359,6 @@ UI_BUILD_SCOPE(&ui) {
                                                 ui.HotKey = EMPTY_UI_KEY_VALUE;
                                             }
 
-| Stale frame threshold | 2 | `UI_STALE_FRAMES` |
                                             UIMenuEntry(&ui, items[i], (i == cursor));
                                         }
                                     }
@@ -445,8 +446,8 @@ if (toast_visible) {
 | Constraint | Value | Defined by |
 |---|---|---|
 | Coordinate range | 0 - 255 | `u8` rect coordinates |
-| Font character range | ASCII 32 - 126 | `FONT_FIRST_CHAR` / `FONT_LAST_CHAR` |
-| Glyph dimensions | 5 * 7 pixels, 6px advance | `FONT_GLYPH_WIDTH` / `FONT_GLYPH_HEIGHT` / `FONT_ADVANCE` |
+| Font character range | ASCII 32 - 126 | `NCUI_FONT_FIRST_CHAR` / `NCUI_FONT_LAST_CHAR` |
+| Glyph dimensions | 5 * 7 pixels, 6px advance | `NCUI_FONT_GLYPH_WIDTH` / `NCUI_FONT_GLYPH_HEIGHT` / `NCUI_FONT_ADVANCE` |
 
 All limits are compile-time constants (see Overrides section above). Redefine 
 them before including the header to adjust for your target. 
