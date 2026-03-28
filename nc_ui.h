@@ -143,7 +143,8 @@ enum {
     UI_BOX_FLAG_FIXED_HEIGHT = (1 <<  7),
     UI_BOX_FLAG_CLIP         = (1 <<  8),
     UI_BOX_FLAG_FLOATING     = (1 <<  9),
-    UI_BOX_FLAG_NAV_SKIP     = (1 << 10)
+    UI_BOX_FLAG_NAV_SKIP     = (1 << 10),
+    UI_BOX_FLAG_DRAW_DIVIDER = (1 << 11)
     
     // NOTE: add more variants here if needed
 };
@@ -207,10 +208,10 @@ enum {
     UI_SIZE_KIND_SUM_OF_CHILDREN                                                // NOTE: size box to fit all children
 };
 
-#define UI_PX(X)      (UISize){ UI_SIZE_KIND_PIXELS, (f32) (X) }
-#define UI_TEXT()     (UISize){ UI_SIZE_KIND_TEXT_CONTENT, 0.0f }
-#define UI_PCT(X)     (UISize){ UI_SIZE_KIND_PERCENT_OF_PARENT, (X) }
-#define UI_CHILDREN() (UISize){ UI_SIZE_KIND_SUM_OF_CHILDREN, 0.0f }
+#define UI_PX(X)      (UISize){ (f32) (X), UI_SIZE_KIND_PIXELS }
+#define UI_TEXT()     (UISize){ 0.0f, UI_SIZE_KIND_TEXT_CONTENT }
+#define UI_PCT(X)     (UISize){ (f32) (X), UI_SIZE_KIND_PERCENT_OF_PARENT }
+#define UI_CHILDREN() (UISize){ 0.0f, UI_SIZE_KIND_SUM_OF_CHILDREN }
 
 #define UI_BUILD_SCOPE(S)       NCUI_DEFER(UIBeginBuild(S), UIEndBuild(S))
 #define UIPreferedWidth(S, X)   NCUI_DEFER(UIPushPreferredWidth(S, X), UIPopPreferredWidth(S))
@@ -246,20 +247,22 @@ struct UIRect {
 };
 
 struct UISize { 
-    UISizeKind Kind; 
     f32        Value; 
+    UISizeKind Kind; 
 };
 
 // NOTE: Retained node representing a square area in the UI tree
 struct UIBox {
     char const* String;
-    UIKey       Key;
     UISize      PreferredSize[AXIS_2D_COUNT];
+    UIKey       Key;
+    UIRect      Rect;
+    UIRect      ClipRect;
     u16         HeadBuildIndex;
     u16         TailBuildIndex;
     UIBoxFlags  Flags;
-    UIRect      Rect;
-    UIRect      ClipRect;
+    u8          FixedSize[AXIS_2D_COUNT];
+    u8          FixedPosition[AXIS_2D_COUNT];
     u8          StringLength;
     u8          HashNext;
     u8          HashPrev;
@@ -271,8 +274,6 @@ struct UIBox {
     UITextAlign TextAlign;
     u8          IsHot;
     u8          IsActive;
-    u8          FixedSize[AXIS_2D_COUNT];
-    u8          FixedPosition[AXIS_2D_COUNT];
     Axis2D      ChildLayoutAxis;
 };
 
@@ -295,31 +296,31 @@ struct UIAnimationNode {
 //     :  - Layout stacks
 //     :  - Display dimensions
 struct UIState {
+    UIBox           Boxes[NCUI_MAX_BOXES];
+    UIEvent         Events[NCUI_MAX_EVENTS];
+    UIAnimationNode AnimationNodes[NCUI_MAX_ANIMATIONS];
+    UIHashSlot      HashSlots[NCUI_BOX_HASH_SLOTS];
+    UIHashSlot      AnimationHashSlots[NCUI_ANIMATION_HASH_SLOTS];
+    UISize          PreferredWidthStack[NCUI_MAX_STACK_DEPTH];
+    UISize          PreferredHeightStack[NCUI_MAX_STACK_DEPTH];
+    UIKey           HotKey;
+    UIKey           ActiveKey;
     u16             Width;
     u16             Height;
     u16             Banks;
     u16             BufferSize;
     u16             BuildIndex;
-    UIBox           Boxes[NCUI_MAX_BOXES];
+    u8              ParentStack[NCUI_MAX_STACK_DEPTH];
+    Axis2D          ChildLayoutAxisStack[NCUI_MAX_STACK_DEPTH];
     u8              BoxesCount;
     u8              HeadFreeBox;
-    UIHashSlot      HashSlots[NCUI_BOX_HASH_SLOTS];
-    u8              ParentStack[NCUI_MAX_STACK_DEPTH];
     u8              ParentStackDepth;
-    UISize          PreferredWidthStack[NCUI_MAX_STACK_DEPTH];
     u8              PreferredWidthStackDepth;
-    UISize          PreferredHeightStack[NCUI_MAX_STACK_DEPTH];
     u8              PreferredHeightStackDepth;
-    Axis2D          ChildLayoutAxisStack[NCUI_MAX_STACK_DEPTH];
     u8              ChildLayoutAxisStackDepth;
-    UIKey           HotKey;
-    UIKey           ActiveKey;
-    UIEvent         Events[NCUI_MAX_EVENTS];
     u8              EventsCount;
     u8              HeadEvent;
     u8              TailEvent;
-    UIAnimationNode AnimationNodes[NCUI_MAX_ANIMATIONS];
-    UIHashSlot      AnimationHashSlots[NCUI_ANIMATION_HASH_SLOTS];
     u8              HeadFreeAnimation;
     u8              AnimationCount;
 };
@@ -411,6 +412,7 @@ NCUI_DEF UISignal UILabel(UIState* State, char const* String);
 NCUI_DEF UISignal UIButton(UIState* State, char const* String);
 NCUI_DEF UISignal UICheckBox(UIState* State, char const* String, b32* Value);
 NCUI_DEF UISignal UIMenuEntry(UIState* State, char const* String, b32 IsSelected);
+NCUI_DEF UISignal UIDivider(UIState* State, char const* String);
 
 // NOTE: Render computed box tree to given Buffer
 NCUI_DEF void DrawUI(UIState* State, u8* Buffer);
@@ -434,6 +436,9 @@ NCUI_DEF void FillDisplay(UIState* State, u8* Buffer);
 NCUI_DEF void DrawHorzLine(UIState* State, u8* Buffer, u8 X0, u8 X1, u8 Y);
 NCUI_DEF void ClearHorzLine(UIState* State, u8* Buffer, u8 X0, u8 X1, u8 Y);
 NCUI_DEF void DrawVertLine(UIState* State, u8* Buffer, u8 X, u8 Y0, u8 Y1);
+NCUI_DEF void ClearVertLine(UIState* State, u8* Buffer, u8 X, u8 Y0, u8 Y1);
+NCUI_DEF void DrawLine(UIState* State, u8* Buffer, u8 X0, u8 Y0, u8 X1, u8 Y1);
+NCUI_DEF void ClearLine(UIState* State, u8* Buffer, u8 X0, u8 Y0, u8 X1, u8 Y1);
 NCUI_DEF void DrawClearRect(UIState* State, u8* Buffer, u8 X0, u8 Y0, u8 X1, u8 Y1);
 NCUI_DEF void DrawInvertRect(UIState* State, u8* Buffer, u8 X0, u8 Y0, u8 X1, u8 Y1);
 NCUI_DEF void DrawBorderRect(UIState* State, u8* Buffer, u8 X0, u8 Y0, u8 X1, u8 Y1);
@@ -1373,6 +1378,17 @@ UIMenuEntry(UIState* State, char const* String, b32 IsSelected)
     return Sig;
 }
 
+NCUI_DEF UISignal
+UIDivider(UIState *State, const char *String)
+{
+    UIBoxFlags Flags = UI_BOX_FLAG_NAV_SKIP | UI_BOX_FLAG_DRAW_DIVIDER;
+
+    if (String)
+        Flags |= UI_BOX_FLAG_DRAW_TEXT;
+
+    return UIBuildBoxFromStr(State, Flags, String);
+}
+
 NCUI_DEF NCUI_ATTR 
 void DrawPixelSet(UIState* State, u8* Buffer, u8 X, u8 Y) 
 {
@@ -1491,6 +1507,100 @@ DrawVertLine(UIState* State, u8* Buffer, u8 X, u8 Y0, u8 Y1)
             Buffer[Bank * State->Width + X] = 0xFF;
 
         Buffer[Bank1 * State->Width + X] |= (0xFF >> (7 - Bit1));
+    }
+}
+
+NCUI_DEF NCUI_ATTR void 
+ClearVertLine(UIState* State, u8* Buffer, u8 X, u8 Y0, u8 Y1) 
+{
+    if (X >= State->Width) 
+        return;
+
+    if (Y0 > Y1) 
+        NCUI_SWAP(u8, Y0, Y1);
+
+    if (Y0 >= State->Height) 
+        return;
+
+    if (Y1 >= State->Height) 
+        Y1 = State->Height - 1;
+
+    u8 Bank0 = Y0 >> 3;
+    u8 Bank1 = Y1 >> 3;
+    u8 Bit0 = Y0 & 7;
+    u8 Bit1 = Y1 & 7;
+
+    if (Bank0 == Bank1) {                                                       // NOTE: Line starts and ends within same display bank
+        u8 Mask = ~((0xFF << Bit0) & (0xFF >> (7 - Bit1)));
+
+        Buffer[Bank0 * State->Width + X] &= Mask;
+    } else {                                                                    // NOTE: Line spans multiple display banks
+        Buffer[Bank0 * State->Width + X] &= (0xFF << Bit0);
+
+        for (u8 Bank = Bank0 + 1; Bank < Bank1; ++Bank)
+            Buffer[Bank * State->Width + X] = 0;
+
+        Buffer[Bank1 * State->Width + X] &= ~(0xFF >> (7 - Bit1));
+    }
+}
+
+NCUI_DEF NCUI_ATTR void
+DrawLine(UIState *State, u8 *Buffer, u8 X0, u8 Y0, u8 X1, u8 Y1)
+{
+    i16 DX = X1 > X0 ? X1 - X0 : X0 - X1;
+    i16 DY = Y1 > Y0 ? Y1 - Y0 : Y0 - Y1;
+    i8 SX = X0 < X1 ? 1 : -1;
+    i8 SY = Y0 < Y1 ? 1 : -1;
+    i16 Threshold = DX + DY;
+    i16 DoubleThreshold;
+
+    for (;;) {
+        DrawPixelSet(State, Buffer, X0, Y0);
+
+        if (X0 == X1 && Y0 == Y1)
+            break;
+
+        DoubleThreshold = 2 * Threshold;
+
+        if (DoubleThreshold >= DY) {
+            Threshold += DY;
+            X0 += SX;
+        }
+
+        if (DoubleThreshold <= DX) {
+            Threshold += DX;
+            Y0 += SY;
+        }
+    }
+}
+
+NCUI_DEF NCUI_ATTR void
+ClearLine(UIState *State, u8 *Buffer, u8 X0, u8 Y0, u8 X1, u8 Y1)
+{
+    i16 DX = X1 > X0 ? X1 - X0 : X0 - X1;
+    i16 DY = Y1 > Y0 ? Y1 - Y0 : Y0 - Y1;
+    i8 SX = X0 < X1 ? 1 : -1;
+    i8 SY = Y0 < Y1 ? 1 : -1;
+    i16 Threshold = DX + DY;
+    i16 DoubleThreshold;
+
+    for (;;) {
+        DrawPixelClear(State, Buffer, X0, Y0);
+
+        if (X0 == X1 && Y0 == Y1)
+            break;
+
+        DoubleThreshold = 2 * Threshold;
+
+        if (DoubleThreshold >= DY) {
+            Threshold += DY;
+            X0 += SX;
+        }
+
+        if (DoubleThreshold <= DX) {
+            Threshold += DX;
+            Y0 += SY;
+        }
     }
 }
 
@@ -2044,6 +2154,40 @@ DrawUI(UIState* State, u8* Buffer)
 
                 if (Box->Flags & UI_BOX_FLAG_DRAW_BORDER) {
                     DrawBorderRect(State, Buffer, X0, Y0, X1, Y1);
+                }
+
+                if (Box->Flags & UI_BOX_FLAG_DRAW_DIVIDER) {
+                    Axis2D ParentAxis = AXIS_2D_Y;
+
+                    if (Box->Parent != EMPTY_UI_INDEX_VALUE)
+                        ParentAxis = State->Boxes[Box->Parent].ChildLayoutAxis;
+
+                    if (ParentAxis == AXIS_2D_Y) {
+                        u8 MidY = Y0 + (Y1 - Y0) / 2;                           // FIXME: divide is slow
+
+                        if ((Box->Flags & UI_BOX_FLAG_DRAW_TEXT) && Box->String) {
+                            u8 TextWidth = FontStrWidth(Box->String);
+
+                            if (X0 + TextWidth + 2 <= X1) {
+                                if (Box->Flags & UI_BOX_FLAG_INVERTED)
+                                    ClearHorzLine(State, Buffer, X0 + TextWidth + 2, X1, MidY);
+                                else
+                                    DrawHorzLine(State, Buffer, X0 + TextWidth + 2, X1, MidY);
+                            }
+                        } else {
+                            if (Box->Flags & UI_BOX_FLAG_INVERTED)
+                                ClearHorzLine(State, Buffer, X0, X1, MidY);
+                            else
+                                DrawHorzLine(State, Buffer, X0, X1, MidY);
+                        }
+                    } else {
+                        u8 MidX = X0 + (X1 - X0) / 2;
+
+                        if (Box->Flags & UI_BOX_FLAG_INVERTED)
+                            ClearVertLine(State, Buffer, MidX, Y0, Y1);
+                        else
+                            DrawVertLine(State, Buffer, MidX, Y0, Y1);
+                    }
                 }
 
                 if ((Box->Flags & UI_BOX_FLAG_DRAW_TEXT) && Box->String) {
