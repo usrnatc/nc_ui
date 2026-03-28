@@ -553,8 +553,12 @@ static const u8 FONT_BYTES[NCUI_FONT_GLYPH_COUNT][NCUI_FONT_GLYPH_WIDTH] = {
 static u8 
 FontStrLen(char const* String) 
 {
-    char const* StringPtr = String;
     u16 Result = 0;
+
+    if (!String)
+        return Result;
+
+    char const* StringPtr = String;
 
     for ( ; *StringPtr; ++StringPtr);
 
@@ -579,6 +583,9 @@ static u32
 Hash(u32 Seed, char const* String, u8 StringLength) 
 {
     u32 Result = 2166136261U ^ Seed;
+
+    if (!String)
+        return Result;
 
     for (u8 Index = 0; Index < StringLength; ++Index) {
         Result ^= (u32) String[Index];
@@ -2056,6 +2063,9 @@ DrawCharInvertedClipped(UIState* State, u8* Buffer, u8 X, u8 Y, char Char, UIRec
 NCUI_DEF NCUI_ATTR void 
 DrawStr(UIState* State, u8* Buffer, u8 X, u8 Y, char const* String) 
 {
+    if (!String)
+        return;
+
     for (
         u8 Index = 0; 
         String[Index] && X < State->Width; 
@@ -2074,6 +2084,9 @@ DrawStrClipped(
     char const* String, 
     UIRect Clip
 ) {
+    if (!String)
+        return;
+
     for (
         u8 Index = 0; 
         String[Index] && X < State->Width; 
@@ -2092,6 +2105,9 @@ DrawStrClipped(
 NCUI_DEF NCUI_ATTR void 
 DrawStrInverted(UIState* State, u8* Buffer, u8 X, u8 Y, char const* String) 
 {
+    if (!String)
+        return;
+
     for (
         u8 Index = 0; 
         String[Index] && X < State->Width; 
@@ -2110,6 +2126,9 @@ DrawStrInvertedClipped(
     char const* String, 
     UIRect Clip
 ) {
+    if (!String)
+        return;
+
     for (
         u8 Index = 0; 
         String[Index] && X < State->Width; 
@@ -2135,6 +2154,9 @@ DrawStrAligned(
     char const* String, 
     u8 Align
 ) {
+    if (!String)
+        return;
+
     u8 Width = FontStrWidth(String);
     u8 X;
 
