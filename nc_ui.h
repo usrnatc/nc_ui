@@ -13,6 +13,7 @@
     #define NCUI_ATTR
 #endif
 
+// FIXME: this definitely falls under stdlib and should respect NCUI_NO_STDLIB
 #if !defined(NCUI_MEMSET)
     #include <string.h>
 
@@ -90,6 +91,8 @@ enum {
 #define FLIP_AXIS(X) ((Axis2D) (!(X)))
 
 // @defines____________________________________________________________________
+
+// NOTE: Override these limits to suit your specific project needs
 #if !defined(NCUI_MAX_BOXES)
     #define NCUI_MAX_BOXES 32
 #endif
@@ -114,8 +117,8 @@ enum {
     #define NCUI_MAX_ANIMATIONS 32
 #endif
 
-#if !defined(NCUI_ANIMATION_HASH_SLOTS_COUNT)
-    #define NCUI_ANIMATION_HASH_SLOTS_COUNT 16
+#if !defined(NCUI_ANIMATION_HASH_SLOTS)
+    #define NCUI_ANIMATION_HASH_SLOTS 16
 #endif
 
 #define NCUI_FONT_GLYPH_WIDTH   5
@@ -127,6 +130,7 @@ enum {
 #define NCUI_FONT_MAX_COLS     14
 #define NCUI_FONT_GLYPH_COUNT  (NCUI_FONT_LAST_CHAR - NCUI_FONT_FIRST_CHAR + 1)
 
+// NOTE: Controls UIBox behavior, layout, and rendering
 typedef u16 UIBoxFlags;
 enum {
     UI_BOX_FLAG_CLICKABLE    = (1 <<  0),
@@ -144,6 +148,7 @@ enum {
     // NOTE: add more variants here if needed
 };
 
+// NOTE: UIBox interaction kinds
 typedef u8 UISignalKind;
 enum {
     UI_SIGNAL_PRESSED  = (1 << 0),
@@ -161,6 +166,8 @@ enum {
 #define UI_HOT(S)      (!!((S).Kind & UI_SIGNAL_HOT))
 #define UI_ACTIVE(S)   (!!((S).Kind & UI_SIGNAL_ACTIVE))
 
+// NOTE: Represent types of user input to a single UIBox
+// WARN: If expanding these, be mindful of current u8 constraint
 typedef u8 UIInputKind;
 enum { 
     UI_INPUT_NONE, 
@@ -173,6 +180,8 @@ enum {
     UI_INPUT_COUNT 
 };
 
+// NOTE: Represent kinds of events that will be propagated and can be handled
+// WARN: If expanding these, be mindful of current u8 constraint
 typedef u8 UIEventKind;
 enum { 
     UI_EVENT_NONE, 
@@ -189,8 +198,6 @@ enum {
     UI_TEXT_ALIGN_COUNT 
 };
 
-#define UI_BUILD_SCOPE(S) NCUI_DEFER(UIBeginBuild(S), UIEndBuild(S))
-
 typedef u8 UISizeKind;
 enum { 
     UI_SIZE_KIND_NULL,
@@ -205,6 +212,7 @@ enum {
 #define UI_PCT(X)     (UISize){ UI_SIZE_KIND_PERCENT_OF_PARENT, (X) }
 #define UI_CHILDREN() (UISize){ UI_SIZE_KIND_SUM_OF_CHILDREN, 0.0f }
 
+#define UI_BUILD_SCOPE(S)       NCUI_DEFER(UIBeginBuild(S), UIEndBuild(S))
 #define UIPreferedWidth(S, X)   NCUI_DEFER(UIPushPreferredWidth(S, X), UIPopPreferredWidth(S))
 #define UIPreferedHeight(S, X)  NCUI_DEFER(UIPushPreferredHeight(S, X), UIPopPreferredHeight(S))
 #define UIChildLayoutAxis(S, X) NCUI_DEFER(UIPushChildLayoutAxis(S, X), UIPopChildLayoutAxis(S))
@@ -217,11 +225,13 @@ struct UIKey {
     u32 V; 
 };
 
+// NOTE: Represents queued input event
 struct UIEvent { 
     UIEventKind Kind; 
     UIInputKind Input; 
 };
 
+// NOTE: Result of building a UIBox, stores its current interaction state
 struct UISignal { 
     UISignalKind Kind; 
 };
@@ -240,6 +250,7 @@ struct UISize {
     f32        Value; 
 };
 
+// NOTE: Retained node representing a square area in the UI tree
 struct UIBox {
     char const* String;
     UIKey       Key;
@@ -278,6 +289,11 @@ struct UIAnimationNode {
     u8    HashPrev; 
 };
 
+// NOTE: Holds current library state:
+//     :  - UIBox tree
+//     :  - Events
+//     :  - Layout stacks
+//     :  - Display dimensions
 struct UIState {
     u16             Width;
     u16             Height;
@@ -303,7 +319,7 @@ struct UIState {
     u8              HeadEvent;
     u8              TailEvent;
     UIAnimationNode AnimationNodes[NCUI_MAX_ANIMATIONS];
-    UIHashSlot      AnimationHashSlots[NCUI_ANIMATION_HASH_SLOTS_COUNT];
+    UIHashSlot      AnimationHashSlots[NCUI_ANIMATION_HASH_SLOTS];
     u8              HeadFreeAnimation;
     u8              AnimationCount;
 };
@@ -352,29 +368,54 @@ UIRectBank(u8 X0, u8 Bank0, u8 X1, u8 Bank1)
 // @functions__________________________________________________________________
 NCUI_DEF UIKey UIKeyFromStr(UIKey Seed, char const* String, u8 StringLength);
 NCUI_DEF UIKey UIKeyFromStr(char const* String);
+
+// NOTE: Initialises the given UIState for given display dimensions
 NCUI_DEF void UIInit(UIState* State, u16 Width, u16 Height);
+
+// NOTE: Begin a UI declaration scope. Resets layout stacks in UIState
 NCUI_DEF void UIBeginBuild(UIState* State);
+
+// NOTE: End a UI declaration scope. Processes events, computes layout, and
+//     : garbage-collect stale boxes
 NCUI_DEF void UIEndBuild(UIState* State);
+
+// NOTE: Queue an input event to be processed in UIEndBuild
 NCUI_DEF void UIPushEvent(UIState* State, UIEventKind Kind, UIInputKind Input);
 NCUI_DEF void UIPopEvent(UIState* State, u8 Index);
+
 NCUI_DEF UIBox* UIBoxFromKey(UIState* State, UIKey Key);
+
+// NOTE: Allocate and insert a box into the current parent and return its
+//     : current interaction state
 NCUI_DEF UISignal UIBuildBox(UIState* State, UIBoxFlags Flags, UIKey Key);
 NCUI_DEF UISignal UIBuildBoxFromStr(UIState* State, UIBoxFlags Flags, char const* String);
+
+// NOTE: Manage parent stack for UI hierarchy
 NCUI_DEF void UIPushParent(UIState* State, UIBox* Box);
 NCUI_DEF void UIPopParent(UIState* State);
 NCUI_DEF UIBox* UIHeadParent(UIState* State);
+
+// NOTE: Framerate independent interpolation keyed by given UIKey
 NCUI_DEF u8 UIAnimate(UIState* State, UIKey Key, u8 Target, u8 Initial, u8 RateShift);
+
+// NOTE: Manage layout property stack
 NCUI_DEF void UIPushPreferredWidth(UIState* State, UISize Size);
 NCUI_DEF void UIPopPreferredWidth(UIState* State);
 NCUI_DEF void UIPushPreferredHeight(UIState* State, UISize Size);
 NCUI_DEF void UIPopPreferredHeight(UIState* State);
 NCUI_DEF void UIPushChildLayoutAxis(UIState* State, Axis2D Axis);
 NCUI_DEF void UIPopChildLayoutAxis(UIState* State);
+
+// NOTE: Some high-level UI components
 NCUI_DEF UISignal UILabel(UIState* State, char const* String);
 NCUI_DEF UISignal UIButton(UIState* State, char const* String);
 NCUI_DEF UISignal UICheckBox(UIState* State, char const* String, b32* Value);
 NCUI_DEF UISignal UIMenuEntry(UIState* State, char const* String, b32 IsSelected);
+
+// NOTE: Render computed box tree to given Buffer
 NCUI_DEF void DrawUI(UIState* State, u8* Buffer);
+
+// NOTE: Draw directly to Buffer, independent of box tree
 NCUI_DEF void DrawStr(UIState* State, u8* Buffer, u8 X, u8 Y, char const* String);
 NCUI_DEF void DrawStrInverted(UIState* State, u8* Buffer, u8 X, u8 Y, char const* String);
 NCUI_DEF void DrawStrClipped(UIState* State, u8* Buffer, u8 X, u8 Y, char const* String, UIRect Clip);
@@ -400,7 +441,12 @@ NCUI_DEF void DrawBMP(UIState* State, u8* Buffer, u8 X, u8 Y, u8 Width, u8 Heigh
 
 #endif // __NC_UI_H__
 
+#define NCUI_IMPLEMENTATION
+
 #if defined(NCUI_IMPLEMENTATION)
+
+// NOTE: 5 * 7 font data, each byte represents a vertical column of 8 pixels.
+//     : bottom bit of each byte is unused (as the font is only 7 pixels tall)
 static const u8 FONT_BYTES[NCUI_FONT_GLYPH_COUNT][NCUI_FONT_GLYPH_WIDTH] = {
     { 0x00, 0x00, 0x00, 0x00, 0x00 },                                           // ' '
     { 0x00, 0x00, 0x5F, 0x00, 0x00 },                                           // '!'
@@ -676,6 +722,8 @@ SignalFromBox(UIState* State, UIBox* Box)
     return Sig;
 }
 
+// NOTE: Pre-order tree traversal
+//     : non-recursive to avoid deep call stacks
 static u8 
 UIGetNextNode(UIState* State, u8 NodeIndex, u8 RootIndex) 
 {
@@ -707,6 +755,9 @@ UIGetFirstNodePostOrder(UIState* State, u8 RootIndex)
     return Current;
 }
 
+// NOTE: Post-order tree traversal
+//     : non-recursive to avoid deep call stacks
+//     : used for layout pass where parent's size depends on size of its children
 static u8 
 UIGetNextNodePostOrder(UIState* State, u8 NodeIndex, u8 RootIndex) 
 {
@@ -727,6 +778,7 @@ UILayoutRoot(UIState* State, u8 RootIndex)
     if (RootIndex == EMPTY_UI_INDEX_VALUE) 
         return;
 
+    // NOTE: Resolve static sizes
     for (
         u8 Node = RootIndex; 
         Node != EMPTY_UI_INDEX_VALUE; 
@@ -748,7 +800,7 @@ UILayoutRoot(UIState* State, u8 RootIndex)
         }
     }
 
-    // Upwards-dependent
+    // NOTE: Resolve upwards-dependent sizes
     for (
         u8 Node = RootIndex; 
         Node != EMPTY_UI_INDEX_VALUE; 
@@ -770,7 +822,7 @@ UILayoutRoot(UIState* State, u8 RootIndex)
         }
     }
 
-    // Downwards-dependent
+    // NOTE: Resolve downwards-dependent sizes
     for (
         u8 Node = UIGetFirstNodePostOrder(State, RootIndex); 
         Node != EMPTY_UI_INDEX_VALUE; 
@@ -801,7 +853,7 @@ UILayoutRoot(UIState* State, u8 RootIndex)
         }
     }
 
-    // Finalisation
+    // NOTE: Compute final positions and clip rectangles
     UIRect ScreenRect = UIRectAlloc(0, 0, State->Width - 1, State->Height - 1);
 
     {
@@ -901,7 +953,7 @@ UIInit(UIState* State, u16 Width, u16 Height)
         State->Boxes[Index].Key = EMPTY_UI_KEY_VALUE;
     }
 
-    for (u8 Index = 0; Index < NCUI_ANIMATION_HASH_SLOTS_COUNT; ++Index) {
+    for (u8 Index = 0; Index < NCUI_ANIMATION_HASH_SLOTS; ++Index) {
         State->AnimationHashSlots[Index].Head = EMPTY_UI_INDEX_VALUE;
         State->AnimationHashSlots[Index].Tail = EMPTY_UI_INDEX_VALUE;
     }
@@ -936,6 +988,9 @@ UIBeginBuild(UIState* State)
 NCUI_DEF void 
 UIEndBuild(UIState* State) 
 {
+    // NOTE: Garbage-collect stale boxes
+    //     : if a box has not been touched within NCUI_STALE_FRAMES,
+    //     : it is considered dead and its memory is reclaimed
     for (u8 SlotIndex = 0; SlotIndex < NCUI_BOX_HASH_SLOTS; ++SlotIndex) {
         u8 BoxIndex = State->HashSlots[SlotIndex].Head;
 
@@ -954,9 +1009,12 @@ UIEndBuild(UIState* State)
         }
     }
 
+    // NOTE: Garbage-collect stale animations
+    //     : if an animation has not been touched within NCUI_STALE_FRAMES,
+    //     : it is considered dead and its memory is reclaimed
     for (
         u8 SlotIndex = 0; 
-        SlotIndex < NCUI_ANIMATION_HASH_SLOTS_COUNT; 
+        SlotIndex < NCUI_ANIMATION_HASH_SLOTS; 
         ++SlotIndex
     ) {
         for (
@@ -991,6 +1049,7 @@ UIEndBuild(UIState* State)
         }
     }
 
+    // NOTE: Handle selection and movement events
     for (u8 EventIndex = 0; EventIndex < NCUI_MAX_EVENTS; ++EventIndex) {
         UIEvent* Event = &State->Events[EventIndex];
 
@@ -1042,7 +1101,7 @@ UIAnimate(UIState *State, UIKey Key, u8 Target, u8 Initial, u8 RateShift)
     if (Key.V == EMPTY_UI_KEY_VALUE.V) 
         return Target;
 
-    u8 SlotIndex = (u8) (Key.V % NCUI_ANIMATION_HASH_SLOTS_COUNT);
+    u8 SlotIndex = (u8) (Key.V % NCUI_ANIMATION_HASH_SLOTS);
     UIHashSlot* Slot = &State->AnimationHashSlots[SlotIndex];
     u8 NodeIndex = Slot->Head;
     UIAnimationNode* Node = NULL;
@@ -1084,6 +1143,7 @@ UIAnimate(UIState *State, UIKey Key, u8 Target, u8 Initial, u8 RateShift)
     if (Diff != 0) {
         i16 Step = Diff >> RateShift;
 
+        // NOTE: Snap to target when remaining distance is smaller than shift
         if (Step == 0) 
             Step = (Diff > 0) ? 1 : -1;
 
@@ -1319,6 +1379,8 @@ void DrawPixelSet(UIState* State, u8* Buffer, u8 X, u8 Y)
     if (X >= State->Width || Y >= State->Height) 
         return;
 
+    // NOTE: Bank index = Y >> 3
+    //     : Bit within Bank index = Y & 7
     Buffer[(Y >> 3) * State->Width + X] |= (1 << (Y & 7));
 }
 
@@ -1418,11 +1480,11 @@ DrawVertLine(UIState* State, u8* Buffer, u8 X, u8 Y0, u8 Y1)
     u8 Bit0 = Y0 & 7;
     u8 Bit1 = Y1 & 7;
 
-    if (Bank0 == Bank1) {
+    if (Bank0 == Bank1) {                                                       // NOTE: Line starts and ends within same display bank
         u8 Mask = ((0xFF << Bit0) & (0xFF >> (7 - Bit1)));
 
         Buffer[Bank0 * State->Width + X] |= Mask;
-    } else {
+    } else {                                                                    // NOTE: Line spans multiple display banks
         Buffer[Bank0 * State->Width + X] |= (0xFF << Bit0);
 
         for (u8 Bank = Bank0 + 1; Bank < Bank1; ++Bank)
@@ -1604,7 +1666,7 @@ DrawChar(UIState* State, u8* Buffer, u8 X, u8 Y, char Char)
     u8 Bank = Y >> 3;
     u8 Bit = Y & 7;
 
-    if (!Bit) {
+    if (!Bit) {                                                                 // NOTE: Fast-path for bank-boundary aligned chars
         u8* Row = Buffer + Bank * State->Width + X;
 
         for (u8 Column = 0; Column < NCUI_FONT_GLYPH_WIDTH; ++Column) {
@@ -1613,7 +1675,7 @@ DrawChar(UIState* State, u8* Buffer, u8 X, u8 Y, char Char)
 
             Row[Column] |= Glyph[Column];
         }
-    } else {
+    } else {                                                                    // NOTE: Character spans multiple display banks
         u8* TopRow = Buffer + Bank * State->Width + X;
 
         if (Bank + 1 < State->Banks) {
