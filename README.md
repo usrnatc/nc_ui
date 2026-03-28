@@ -38,8 +38,9 @@ In **one** C++ source file, define `NCUI_IMPLEMENTATION` before including the he
 
 All other files that need the API include the header without the define.
 
-To confine all symbols to a single translation unit, `NCUI_STATIC` can be defined
-alongside `NCUI_IMPLEMENTATION`.
+> [!TIP]
+> To confine all symbols to a single translation unit, `NCUI_STATIC` can be defined
+> alongside `NCUI_IMPLEMENTATION`.
 
 ### Overrides
 
@@ -454,5 +455,6 @@ if (toast_visible) {
 All limits are compile-time constants (see Overrides section above). Redefine 
 them before including the header to adjust for your target. 
 
-The `u8` coordinate type imposes a hard ceiling of 255 * 255 pixels.
-This can be changed to allow any screen size you require.
+> [!WARNING]
+> The `u8` coordinate type imposes a hard ceiling of 255 * 255 pixels.
+> This can be changed to allow any screen size you require.
