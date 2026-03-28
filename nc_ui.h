@@ -17,7 +17,7 @@
 #if !defined(NCUI_MEMSET)
     #include <string.h>
 
-    #define NCUI_MEMSET(X, Y, Z) __builtin_memset(X, Y, Z)
+    #define NCUI_MEMSET(X, Y, Z) memset(X, Y, Z)
 #endif
 
 #if !defined(NCUI_MAX)
