@@ -1,6 +1,7 @@
 #if !defined(__NC_UI_H__)
 #define __NC_UI_H__
 
+// @defines____________________________________________________________________
 #if !defined(NCUI_DEF)
     #if defined(NCUI_STATIC)
         #define NCUI_DEF static
@@ -13,11 +14,56 @@
     #define NCUI_ATTR
 #endif
 
-// FIXME: this definitely falls under stdlib and should respect NCUI_NO_STDLIB
-#if !defined(NCUI_MEMSET)
-    #include <string.h>
+#if !defined(NCUI_NO_STDLIB)
+    #include <stdint.h>
 
-    #define NCUI_MEMSET(X, Y, Z) memset(X, Y, Z)
+    typedef uint8_t  u8;
+    typedef uint16_t u16;
+    typedef uint32_t u32;
+    typedef uint64_t u64;
+    typedef int8_t   i8;
+    typedef int16_t  i16;
+    typedef int32_t  i32;
+    typedef int64_t  i64;
+    typedef uint32_t b32;
+    typedef uint8_t  b8;
+    typedef float    f32;
+    typedef double   f64;
+#else
+    typedef unsigned char      u8;
+    typedef unsigned short     u16;
+    typedef unsigned int       u32;
+    typedef unsigned long long u64;
+    typedef signed char        i8;
+    typedef signed short       i16;
+    typedef signed int         i32;
+    typedef signed long long   i64;
+    typedef u32                b32;
+    typedef u8                 b8;
+    typedef float              f32;
+    typedef double             f64;
+#endif
+
+#if !defined(NCUI_MEMSET)
+    #if !defined(NCUI_NO_STDLIB)
+        #include <string.h>
+
+        #define NCUI_MEMSET(X, Y, Z) memset(X, Y, Z)
+    #else
+        // TODO(nathan): at least iterate over more than a byte at a time
+        static inline void*
+        MemSet(void* _Dst, u8 Value, u32 Count)
+        {
+            u8* Dst = (u8*) _Dst;
+        
+            while (Count--)
+                *Dst++ = Value;
+
+            return _Dst;
+        }
+
+        #define NCUI_MEMSET(X, Y, Z) MemSet(X, Y, Z)
+    #endif
 #endif
 
 #if !defined(NCUI_MAX)
@@ -37,25 +83,7 @@
 #endif
 
 #if !defined(NCUI_DEFER)
-    #define NCUI_DEFER(X, Y) for (long long __I = ((X), 0); !__I; ++__I, (Y))
-#endif
-
-// @types______________________________________________________________________
-#if !defined(NCUI_NO_STDLIB)
-    #include <stdint.h>
-
-    typedef uint8_t  u8;
-    typedef uint16_t u16;
-    typedef uint32_t u32;
-    typedef uint64_t u64;
-    typedef int8_t   i8;
-    typedef int16_t  i16;
-    typedef int32_t  i32;
-    typedef int64_t  i64;
-    typedef uint32_t b32;
-    typedef uint8_t  b8;
-    typedef float    f32;
-    typedef double   f64;
+    #define NCUI_DEFER(X, Y) for (u32 __I = ((X), 0); !__I; ++__I, (Y))
 #endif
 
 #if !defined(FALSE)
@@ -89,8 +117,6 @@ enum {
 };
 
 #define FLIP_AXIS(X) ((Axis2D) (!(X)))
-
-// @defines____________________________________________________________________
 
 // NOTE: Override these limits to suit your specific project needs
 #if !defined(NCUI_MAX_BOXES)
@@ -221,7 +247,7 @@ enum {
 
 #define UIRectIsValid(X) (((X).X0 <= (X).X1) && ((X).Y0 <= (X).Y1))
 
-// @structs____________________________________________________________________
+// @types______________________________________________________________________
 struct UIKey { 
     u32 V; 
 };
@@ -1228,7 +1254,7 @@ UIBuildBox(UIState* State, UIBoxFlags Flags, UIKey Key)
         ? State->PreferredHeightStack[State->PreferredHeightStackDepth - 1] 
         : UI_PX(0);
     Box->ChildLayoutAxis = State->ChildLayoutAxisStackDepth 
-        ? State->ChildLayoutAxisStack[State->ChildLayoutAxisStackDepth - 1] 
+        ? State->ChildLayoutAxisStack[State->ChildLayoutAxisStackDepth - 1]
         : AXIS_2D_Y;
 
     UIBox* Parent = UIHeadParent(State);
