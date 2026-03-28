@@ -48,7 +48,7 @@ The following macros can be defined before including the header to replace defau
 
 | Macro | Default | Purpose |
 |---|---|---|
-| `NCUI_MEMSET(dst, val, sz)` | `__builtin_memset` | Memory fill |
+| `NCUI_MEMSET(dst, val, sz)` | `memset` | Memory fill |
 | `NCUI_MAX(a, b)` | Ternary max | Maximum of two values |
 | `NCUI_MIN(a, b)` | Ternary min | Minimum of two values |
 | `NCUI_NO_STDLIB` | Undefined | Suppresses `<stdint.h>` include; caller must provide `u8`, `u16`, `u32`, `u64`, `i8`, `i16`, `i32`, `i64`, `b32`, `b8`, `f32`, `f64` typedefs |
