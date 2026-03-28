@@ -413,6 +413,8 @@ NCUI_DEF UISignal UIButton(UIState* State, char const* String);
 NCUI_DEF UISignal UICheckBox(UIState* State, char const* String, b32* Value);
 NCUI_DEF UISignal UIMenuEntry(UIState* State, char const* String, b32 IsSelected);
 NCUI_DEF UISignal UIDivider(UIState* State, char const* String);
+NCUI_DEF UISignal UIProgressBar(UIState* State, char const* String, u8 ProgressPCT);
+NCUI_DEF UISignal UISlider(UIState* State, char const* String, u8* ValuePCT, u8 Step);
 
 // NOTE: Render computed box tree to given Buffer
 NCUI_DEF void DrawUI(UIState* State, u8* Buffer);
@@ -445,8 +447,6 @@ NCUI_DEF void DrawBorderRect(UIState* State, u8* Buffer, u8 X0, u8 Y0, u8 X1, u8
 NCUI_DEF void DrawBMP(UIState* State, u8* Buffer, u8 X, u8 Y, u8 Width, u8 Height, u8 const* Data);
 
 #endif // __NC_UI_H__
-
-#define NCUI_IMPLEMENTATION
 
 #if defined(NCUI_IMPLEMENTATION)
 
@@ -1387,6 +1387,91 @@ UIDivider(UIState *State, const char *String)
         Flags |= UI_BOX_FLAG_DRAW_TEXT;
 
     return UIBuildBoxFromStr(State, Flags, String);
+}
+
+
+NCUI_DEF UISignal 
+UIProgressBar(UIState* State, char const* String, u8 ProgressPCT)
+{
+    UIKey BaseKey = UIKeyFromStr(String);
+    UISignal Sig = UIBuildBox(State, UI_BOX_FLAG_DRAW_BORDER, BaseKey);
+    UIBox* ParentBox = UIBoxFromKey(State, BaseKey);
+
+    ProgressPCT = NCUI_CLAMP_TOP(ProgressPCT, 100);
+
+    if (ParentBox && ProgressPCT) {
+        UIParent(State, ParentBox) {
+            UIPreferedWidth(State, UI_PCT((f32) ProgressPCT / 100.0f)) {        // FIXME: RIP ISAs with no hardware float div op
+                UIPreferedHeight(State, UI_PCT(1.0f)) {
+                    UIKey FillKey = UIKeyFromStr(BaseKey, "fill", 4);
+
+                    UIBuildBox(
+                        State,
+                        UI_BOX_FLAG_DRAW_FILL | UI_BOX_FLAG_NAV_SKIP,
+                        FillKey
+                    );
+                }
+            }
+        }
+    }
+
+    return Sig;
+}
+
+NCUI_DEF UISignal 
+UISlider(UIState* State, char const* String, u8* ValuePCT, u8 Step)
+{
+    UIKey BaseKey = UIKeyFromStr(String);
+    UISignal Sig = UIBuildBox(
+        State,
+        UI_BOX_FLAG_DRAW_BORDER | UI_BOX_FLAG_CLICKABLE,
+        BaseKey
+    );
+    UIBox* ParentBox = UIBoxFromKey(State, BaseKey);
+
+    if (UI_HOT(Sig) || UI_ACTIVE(Sig)) {
+        for (u8 Index = 0; Index < NCUI_MAX_EVENTS; ++Index) {
+            UIEvent* Event = &State->Events[Index];
+
+            if (Event->Kind == UI_EVENT_PRESS) {
+                if (Event->Input == UI_INPUT_LEFT) {
+                    if (*ValuePCT >= Step)
+                        *ValuePCT -= Step;
+                    else
+                        *ValuePCT = 0;
+
+                    UIPopEvent(State, Index);
+                } else if (Event->Input == UI_INPUT_RIGHT) {
+                    if (*ValuePCT <= 100 - Step)
+                        *ValuePCT += Step;
+                    else
+                        *ValuePCT = 100;
+
+                    UIPopEvent(State, Index);
+                }
+            }
+        }
+    }
+
+    *ValuePCT = NCUI_CLAMP_TOP(*ValuePCT, 100);
+
+    if (ParentBox && *ValuePCT) {
+        UIParent(State, ParentBox) {
+            UIPreferedWidth(State, UI_PCT((f32) *ValuePCT / 100.0f)) {
+                UIPreferedHeight(State, UI_PCT(1.0f)) {
+                    UIKey FillKey = UIKeyFromStr(BaseKey, "fill", 4);
+                    UIBoxFlags Flags = UI_BOX_FLAG_DRAW_FILL | UI_BOX_FLAG_NAV_SKIP;
+
+                    if (UI_ACTIVE(Sig))
+                        Flags = UI_BOX_FLAG_DRAW_BORDER | UI_BOX_FLAG_NAV_SKIP;
+
+                    UIBuildBox(State, Flags, FillKey);
+                }
+            }
+        }
+    }
+
+    return Sig;
 }
 
 NCUI_DEF NCUI_ATTR 

@@ -166,6 +166,8 @@ UICheckBox(&ui, "Toggle", &boolValue);    // toggles b32 on click
 UIMenuEntry(&ui, "Item", isSelected);     // full-width row, inverted when selected
 UIDivider(&ui, "Optional Label");         // divide list of boxes, skipped by navigation
 UIDivider(&ui, NULL);                     // only draw the dividing line with no label
+UIProgressBar(&ui, "Loading ...", 50);    // progress bar with label
+UISlider(&ui, "Volume", &currVal, 10);    // slider input, moved with LEFT and RIGHT inputs
 ```
 
 ### Direct drawing
