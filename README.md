@@ -47,11 +47,18 @@ The following macros can be defined before including the header to replace defau
 
 | Macro | Default | Purpose |
 |---|---|---|
-| `NCUI_MEMSET(dst, val, sz)` | `memset` | Memory fill |
+| `NCUI_MEMSET(dst, val, sz)` | `__builtin_memset` | Memory fill |
 | `NCUI_MAX(a, b)` | Ternary max | Maximum of two values |
 | `NCUI_MIN(a, b)` | Ternary min | Minimum of two values |
-| `NCUI_NO_STDLIB` | Not defined | Suppresses `<stdint.h>` include; caller must provide `u8`, `u16`, `u32`, `u64`, `i8`, `i16`, `i32`, `i64`, `b32`, `b8`, `f32`, `f64` typedefs |
-| `NCUI_ATTR`      | Not defined | Add attributes to function definitions such as `IRAM_ATTR` if using `esp32` |
+| `NCUI_NO_STDLIB` | Undefined | Suppresses `<stdint.h>` include; caller must provide `u8`, `u16`, `u32`, `u64`, `i8`, `i16`, `i32`, `i64`, `b32`, `b8`, `f32`, `f64` typedefs |
+| `NCUI_ATTR`      | Undefined | Add attributes to function definitions such as `IRAM_ATTR` if using `esp32` |
+| `NCUI_MAX_BOXES` | 32 | Maximum number of boxes in a UI hierarchy |
+| `NCUI_MAX_EVENTS` | 8 | Maximum number of events that can be queued in a single frame/tick |
+| `NCUI_BOX_HASH_SLOTS` | 16 | Maximum number of slots in box hash table |
+| `NCUI_STALE_FRAMES` | 2 | Lifetime (frames or ticks) of a box or animation before being auto-released |
+| `NCUI_MAX_STACK_DEPTH` | 8 | Maximum nesting of box attributes (e.g. PreferredWidth) in a UI hierarchy |
+| `NCUI_MAX_ANIMATIONS` | 32 | Maximum number of animations in a UI hierarchy |
+| `NCUI_ANIMATION_HASH_SLOTS` | 16 | Maximum number of slots in animation hash table |
 
 ## Usage
 
@@ -350,6 +357,7 @@ UI_BUILD_SCOPE(&ui) {
                                                 ui.HotKey = EMPTY_UI_KEY_VALUE;
                                             }
 
+| Stale frame threshold | 2 | `UI_STALE_FRAMES` |
                                             UIMenuEntry(&ui, items[i], (i == cursor));
                                         }
                                     }
@@ -436,19 +444,12 @@ if (toast_visible) {
 
 | Constraint | Value | Defined by |
 |---|---|---|
-| Maximum simultaneous boxes | 32 | `UI_MAX_BOXES` |
-| Maximum simultaneous animations | 32 | `UI_MAX_ANIMATIONS` |
-| Maximum queued input events | 8 | `UI_MAX_EVENTS` |
-| Box hash table slots | 16 | `UI_BOX_HASH_SLOTS` |
-| Animation hash table slots | 16 | `UI_ANIMATION_HASH_SLOTS_COUNT` |
-| Parent/size/axis stack depth | 8 | `UI_MAX_STACK_DEPTH` |
 | Coordinate range | 0 - 255 | `u8` rect coordinates |
-| Stale frame threshold | 2 | `UI_STALE_FRAMES` |
 | Font character range | ASCII 32 - 126 | `FONT_FIRST_CHAR` / `FONT_LAST_CHAR` |
 | Glyph dimensions | 5 * 7 pixels, 6px advance | `FONT_GLYPH_WIDTH` / `FONT_GLYPH_HEIGHT` / `FONT_ADVANCE` |
 
-All limits are compile-time constants. Redefine them before including the header 
-to adjust for your target. 
+All limits are compile-time constants (see Overrides section above). Redefine 
+them before including the header to adjust for your target. 
 
 The `u8` coordinate type imposes a hard ceiling of 255 * 255 pixels.
 This can be changed to allow any screen size you require.

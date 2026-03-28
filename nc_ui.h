@@ -90,19 +90,42 @@ enum {
 #define FLIP_AXIS(X) ((Axis2D) (!(X)))
 
 // @defines____________________________________________________________________
-#define UI_MAX_BOXES      32
-#define UI_MAX_EVENTS      8
-#define UI_BOX_HASH_SLOTS 16
-#define UI_STALE_FRAMES    2
-#define UI_MAX_STACK_DEPTH 8
-#define FONT_GLYPH_WIDTH   5
-#define FONT_GLYPH_HEIGHT  7
-#define FONT_ADVANCE       6
-#define FONT_LINE_HEIGHT   8
-#define FONT_FIRST_CHAR   32
-#define FONT_LAST_CHAR   126
-#define FONT_MAX_COLS     14
-#define FONT_GLYPH_COUNT  (FONT_LAST_CHAR - FONT_FIRST_CHAR + 1)
+#if !defined(NCUI_MAX_BOXES)
+    #define NCUI_MAX_BOXES 32
+#endif
+
+#if !defined(NCUI_MAX_EVENTS)
+    #define NCUI_MAX_EVENTS 8
+#endif
+
+#if !defined(NCUI_BOX_HASH_SLOTS)
+    #define NCUI_BOX_HASH_SLOTS 16
+#endif
+
+#if !defined(NCUI_STALE_FRAMES)
+    #define NCUI_STALE_FRAMES 2
+#endif
+
+#if !defined(NCUI_MAX_STACK_DEPTH)
+    #define NCUI_MAX_STACK_DEPTH 8
+#endif
+
+#if !defined(NCUI_MAX_ANIMATIONS)
+    #define NCUI_MAX_ANIMATIONS 32
+#endif
+
+#if !defined(NCUI_ANIMATION_HASH_SLOTS_COUNT)
+    #define NCUI_ANIMATION_HASH_SLOTS_COUNT 16
+#endif
+
+#define NCUI_FONT_GLYPH_WIDTH   5
+#define NCUI_FONT_GLYPH_HEIGHT  7
+#define NCUI_FONT_ADVANCE       6
+#define NCUI_FONT_LINE_HEIGHT   8
+#define NCUI_FONT_FIRST_CHAR   32
+#define NCUI_FONT_LAST_CHAR   126
+#define NCUI_FONT_MAX_COLS     14
+#define NCUI_FONT_GLYPH_COUNT  (NCUI_FONT_LAST_CHAR - NCUI_FONT_FIRST_CHAR + 1)
 
 typedef u16 UIBoxFlags;
 enum {
@@ -117,6 +140,8 @@ enum {
     UI_BOX_FLAG_CLIP         = (1 <<  8),
     UI_BOX_FLAG_FLOATING     = (1 <<  9),
     UI_BOX_FLAG_NAV_SKIP     = (1 << 10)
+    
+    // NOTE: add more variants here if needed
 };
 
 typedef u8 UISignalKind;
@@ -166,16 +191,13 @@ enum {
 
 #define UI_BUILD_SCOPE(S) NCUI_DEFER(UIBeginBuild(S), UIEndBuild(S))
 
-#define UI_MAX_ANIMATIONS             32
-#define UI_ANIMATION_HASH_SLOTS_COUNT 16
-
 typedef u8 UISizeKind;
 enum { 
-    UI_SIZE_KIND_NULL, 
-    UI_SIZE_KIND_PIXELS, 
-    UI_SIZE_KIND_TEXT_CONTENT, 
-    UI_SIZE_KIND_PERCENT_OF_PARENT, 
-    UI_SIZE_KIND_SUM_OF_CHILDREN 
+    UI_SIZE_KIND_NULL,
+    UI_SIZE_KIND_PIXELS,                                                        // NOTE: static pixel sizing
+    UI_SIZE_KIND_TEXT_CONTENT,                                                  // NOTE: size box to fit text content
+    UI_SIZE_KIND_PERCENT_OF_PARENT,                                             // NOTE: size box to fill % of parent
+    UI_SIZE_KIND_SUM_OF_CHILDREN                                                // NOTE: size box to fit all children
 };
 
 #define UI_PX(X)      (UISize){ UI_SIZE_KIND_PIXELS, (f32) (X) }
@@ -204,6 +226,8 @@ struct UISignal {
     UISignalKind Kind; 
 };
 
+// WARN: These co-ordinates are constrained to unsigned 8 bit limits.
+//     : change these if you wish to use a larger display
 struct UIRect { 
     u8 X0; 
     u8 Y0; 
@@ -260,26 +284,26 @@ struct UIState {
     u16             Banks;
     u16             BufferSize;
     u16             BuildIndex;
-    UIBox           Boxes[UI_MAX_BOXES];
+    UIBox           Boxes[NCUI_MAX_BOXES];
     u8              BoxesCount;
     u8              HeadFreeBox;
-    UIHashSlot      HashSlots[UI_BOX_HASH_SLOTS];
-    u8              ParentStack[UI_MAX_STACK_DEPTH];
+    UIHashSlot      HashSlots[NCUI_BOX_HASH_SLOTS];
+    u8              ParentStack[NCUI_MAX_STACK_DEPTH];
     u8              ParentStackDepth;
-    UISize          PreferredWidthStack[UI_MAX_STACK_DEPTH];
+    UISize          PreferredWidthStack[NCUI_MAX_STACK_DEPTH];
     u8              PreferredWidthStackDepth;
-    UISize          PreferredHeightStack[UI_MAX_STACK_DEPTH];
+    UISize          PreferredHeightStack[NCUI_MAX_STACK_DEPTH];
     u8              PreferredHeightStackDepth;
-    Axis2D          ChildLayoutAxisStack[UI_MAX_STACK_DEPTH];
+    Axis2D          ChildLayoutAxisStack[NCUI_MAX_STACK_DEPTH];
     u8              ChildLayoutAxisStackDepth;
     UIKey           HotKey;
     UIKey           ActiveKey;
-    UIEvent         Events[UI_MAX_EVENTS];
+    UIEvent         Events[NCUI_MAX_EVENTS];
     u8              EventsCount;
     u8              HeadEvent;
     u8              TailEvent;
-    UIAnimationNode AnimationNodes[UI_MAX_ANIMATIONS];
-    UIHashSlot      AnimationHashSlots[UI_ANIMATION_HASH_SLOTS_COUNT];
+    UIAnimationNode AnimationNodes[NCUI_MAX_ANIMATIONS];
+    UIHashSlot      AnimationHashSlots[NCUI_ANIMATION_HASH_SLOTS_COUNT];
     u8              HeadFreeAnimation;
     u8              AnimationCount;
 };
@@ -377,113 +401,113 @@ NCUI_DEF void DrawBMP(UIState* State, u8* Buffer, u8 X, u8 Y, u8 Width, u8 Heigh
 #endif // __NC_UI_H__
 
 #if defined(NCUI_IMPLEMENTATION)
-static const u8 FONT_BYTES[FONT_GLYPH_COUNT][FONT_GLYPH_WIDTH] = {
-    { 0x00, 0x00, 0x00, 0x00, 0x00 },                // ' '
-    { 0x00, 0x00, 0x5F, 0x00, 0x00 },                // '!'
-    { 0x00, 0x07, 0x00, 0x07, 0x00 },                // '"'
-    { 0x14, 0x7F, 0x14, 0x7F, 0x14 },                // '#'
-    { 0x24, 0x2A, 0x7F, 0x2A, 0x12 },                // '$'
-    { 0x23, 0x13, 0x08, 0x64, 0x62 },                // '%'
-    { 0x36, 0x49, 0x55, 0x22, 0x50 },                // '&'
-    { 0x00, 0x05, 0x03, 0x00, 0x00 },                // '''
-    { 0x00, 0x1C, 0x22, 0x41, 0x00 },                // '('
-    { 0x00, 0x41, 0x22, 0x1C, 0x00 },                // ')'
-    { 0x08, 0x2A, 0x1C, 0x2A, 0x08 },                // '*'
-    { 0x08, 0x08, 0x3E, 0x08, 0x08 },                // '+'
-    { 0x00, 0x50, 0x30, 0x00, 0x00 },                // ','
-    { 0x08, 0x08, 0x08, 0x08, 0x08 },                // '-'
-    { 0x00, 0x60, 0x60, 0x00, 0x00 },                // '.'
-    { 0x20, 0x10, 0x08, 0x04, 0x02 },                // '/'
-    { 0x3E, 0x51, 0x49, 0x45, 0x3E },                // '0'
-    { 0x00, 0x42, 0x7F, 0x40, 0x00 },                // '1'
-    { 0x42, 0x61, 0x51, 0x49, 0x46 },                // '2'
-    { 0x21, 0x41, 0x45, 0x4B, 0x31 },                // '3'
-    { 0x18, 0x14, 0x12, 0x7F, 0x10 },                // '4'
-    { 0x27, 0x45, 0x45, 0x45, 0x39 },                // '5'
-    { 0x3C, 0x4A, 0x49, 0x49, 0x30 },                // '6'
-    { 0x01, 0x71, 0x09, 0x05, 0x03 },                // '7'
-    { 0x36, 0x49, 0x49, 0x49, 0x36 },                // '8'
-    { 0x06, 0x49, 0x49, 0x29, 0x1E },                // '9'
-    { 0x00, 0x36, 0x36, 0x00, 0x00 },                // ':'
-    { 0x00, 0x56, 0x36, 0x00, 0x00 },                // ';'
-    { 0x00, 0x08, 0x14, 0x22, 0x41 },                // '<'
-    { 0x14, 0x14, 0x14, 0x14, 0x14 },                // '='
-    { 0x41, 0x22, 0x14, 0x08, 0x00 },                // '>'
-    { 0x02, 0x01, 0x51, 0x09, 0x06 },                // '?'
-    { 0x32, 0x49, 0x79, 0x41, 0x3E },                // '@'
-    { 0x7E, 0x11, 0x11, 0x11, 0x7E },                // 'A'
-    { 0x7F, 0x49, 0x49, 0x49, 0x36 },                // 'B'
-    { 0x3E, 0x41, 0x41, 0x41, 0x22 },                // 'C'
-    { 0x7F, 0x41, 0x41, 0x22, 0x1C },                // 'D'
-    { 0x7F, 0x49, 0x49, 0x49, 0x41 },                // 'E'
-    { 0x7F, 0x09, 0x09, 0x01, 0x01 },                // 'F'
-    { 0x3E, 0x41, 0x41, 0x51, 0x32 },                // 'G'
-    { 0x7F, 0x08, 0x08, 0x08, 0x7F },                // 'H'
-    { 0x00, 0x41, 0x7F, 0x41, 0x00 },                // 'I'
-    { 0x20, 0x40, 0x41, 0x3F, 0x01 },                // 'J'
-    { 0x7F, 0x08, 0x14, 0x22, 0x41 },                // 'K'
-    { 0x7F, 0x40, 0x40, 0x40, 0x40 },                // 'L'
-    { 0x7F, 0x02, 0x04, 0x02, 0x7F },                // 'M'
-    { 0x7F, 0x04, 0x08, 0x10, 0x7F },                // 'N'
-    { 0x3E, 0x41, 0x41, 0x41, 0x3E },                // 'O'
-    { 0x7F, 0x09, 0x09, 0x09, 0x06 },                // 'P'
-    { 0x3E, 0x41, 0x51, 0x21, 0x5E },                // 'Q'
-    { 0x7F, 0x09, 0x19, 0x29, 0x46 },                // 'R'
-    { 0x46, 0x49, 0x49, 0x49, 0x31 },                // 'S'
-    { 0x01, 0x01, 0x7F, 0x01, 0x01 },                // 'T'
-    { 0x3F, 0x40, 0x40, 0x40, 0x3F },                // 'U'
-    { 0x1F, 0x20, 0x40, 0x20, 0x1F },                // 'V'
-    { 0x7F, 0x20, 0x18, 0x20, 0x7F },                // 'W'
-    { 0x63, 0x14, 0x08, 0x14, 0x63 },                // 'X'
-    { 0x03, 0x04, 0x78, 0x04, 0x03 },                // 'Y'
-    { 0x61, 0x51, 0x49, 0x45, 0x43 },                // 'Z'
-    { 0x00, 0x00, 0x7F, 0x41, 0x41 },                // '['
-    { 0x02, 0x04, 0x08, 0x10, 0x20 },                // '\'
-    { 0x41, 0x41, 0x7F, 0x00, 0x00 },                // ']'
-    { 0x04, 0x02, 0x01, 0x02, 0x04 },                // '^'
-    { 0x40, 0x40, 0x40, 0x40, 0x40 },                // '_'
-    { 0x00, 0x01, 0x02, 0x04, 0x00 },                // '`'
-    { 0x20, 0x54, 0x54, 0x54, 0x78 },                // 'a'
-    { 0x7F, 0x48, 0x44, 0x44, 0x38 },                // 'b'
-    { 0x38, 0x44, 0x44, 0x44, 0x20 },                // 'c'
-    { 0x38, 0x44, 0x44, 0x48, 0x7F },                // 'd'
-    { 0x38, 0x54, 0x54, 0x54, 0x18 },                // 'e'
-    { 0x08, 0x7E, 0x09, 0x01, 0x02 },                // 'f'
-    { 0x08, 0x14, 0x54, 0x54, 0x3C },                // 'g'
-    { 0x7F, 0x08, 0x04, 0x04, 0x78 },                // 'h'
-    { 0x00, 0x44, 0x7D, 0x40, 0x00 },                // 'i'
-    { 0x20, 0x40, 0x44, 0x3D, 0x00 },                // 'j'
-    { 0x00, 0x7F, 0x10, 0x28, 0x44 },                // 'k'
-    { 0x00, 0x41, 0x7F, 0x40, 0x00 },                // 'l'
-    { 0x7C, 0x04, 0x18, 0x04, 0x78 },                // 'm'
-    { 0x7C, 0x08, 0x04, 0x04, 0x78 },                // 'n'
-    { 0x38, 0x44, 0x44, 0x44, 0x38 },                // 'o'
-    { 0x7C, 0x14, 0x14, 0x14, 0x08 },                // 'p'
-    { 0x08, 0x14, 0x14, 0x18, 0x7C },                // 'q'
-    { 0x7C, 0x08, 0x04, 0x04, 0x08 },                // 'r'
-    { 0x48, 0x54, 0x54, 0x54, 0x20 },                // 's'
-    { 0x04, 0x3F, 0x44, 0x40, 0x20 },                // 't'
-    { 0x3C, 0x40, 0x40, 0x20, 0x7C },                // 'u'
-    { 0x1C, 0x20, 0x40, 0x20, 0x1C },                // 'v'
-    { 0x3C, 0x40, 0x30, 0x40, 0x3C },                // 'w'
-    { 0x44, 0x28, 0x10, 0x28, 0x44 },                // 'x'
-    { 0x0C, 0x50, 0x50, 0x50, 0x3C },                // 'y'
-    { 0x44, 0x64, 0x54, 0x4C, 0x44 },                // 'z'
-    { 0x00, 0x08, 0x36, 0x41, 0x00 },                // '{'
-    { 0x00, 0x00, 0x7F, 0x00, 0x00 },                // '|'
-    { 0x00, 0x41, 0x36, 0x08, 0x00 },                // '}'
-    { 0x08, 0x04, 0x08, 0x10, 0x08 }                 // '~'
+static const u8 FONT_BYTES[NCUI_FONT_GLYPH_COUNT][NCUI_FONT_GLYPH_WIDTH] = {
+    { 0x00, 0x00, 0x00, 0x00, 0x00 },                                           // ' '
+    { 0x00, 0x00, 0x5F, 0x00, 0x00 },                                           // '!'
+    { 0x00, 0x07, 0x00, 0x07, 0x00 },                                           // '"'
+    { 0x14, 0x7F, 0x14, 0x7F, 0x14 },                                           // '#'
+    { 0x24, 0x2A, 0x7F, 0x2A, 0x12 },                                           // '$'
+    { 0x23, 0x13, 0x08, 0x64, 0x62 },                                           // '%'
+    { 0x36, 0x49, 0x55, 0x22, 0x50 },                                           // '&'
+    { 0x00, 0x05, 0x03, 0x00, 0x00 },                                           // '''
+    { 0x00, 0x1C, 0x22, 0x41, 0x00 },                                           // '('
+    { 0x00, 0x41, 0x22, 0x1C, 0x00 },                                           // ')'
+    { 0x08, 0x2A, 0x1C, 0x2A, 0x08 },                                           // '*'
+    { 0x08, 0x08, 0x3E, 0x08, 0x08 },                                           // '+'
+    { 0x00, 0x50, 0x30, 0x00, 0x00 },                                           // ','
+    { 0x08, 0x08, 0x08, 0x08, 0x08 },                                           // '-'
+    { 0x00, 0x60, 0x60, 0x00, 0x00 },                                           // '.'
+    { 0x20, 0x10, 0x08, 0x04, 0x02 },                                           // '/'
+    { 0x3E, 0x51, 0x49, 0x45, 0x3E },                                           // '0'
+    { 0x00, 0x42, 0x7F, 0x40, 0x00 },                                           // '1'
+    { 0x42, 0x61, 0x51, 0x49, 0x46 },                                           // '2'
+    { 0x21, 0x41, 0x45, 0x4B, 0x31 },                                           // '3'
+    { 0x18, 0x14, 0x12, 0x7F, 0x10 },                                           // '4'
+    { 0x27, 0x45, 0x45, 0x45, 0x39 },                                           // '5'
+    { 0x3C, 0x4A, 0x49, 0x49, 0x30 },                                           // '6'
+    { 0x01, 0x71, 0x09, 0x05, 0x03 },                                           // '7'
+    { 0x36, 0x49, 0x49, 0x49, 0x36 },                                           // '8'
+    { 0x06, 0x49, 0x49, 0x29, 0x1E },                                           // '9'
+    { 0x00, 0x36, 0x36, 0x00, 0x00 },                                           // ':'
+    { 0x00, 0x56, 0x36, 0x00, 0x00 },                                           // ';'
+    { 0x00, 0x08, 0x14, 0x22, 0x41 },                                           // '<'
+    { 0x14, 0x14, 0x14, 0x14, 0x14 },                                           // '='
+    { 0x41, 0x22, 0x14, 0x08, 0x00 },                                           // '>'
+    { 0x02, 0x01, 0x51, 0x09, 0x06 },                                           // '?'
+    { 0x32, 0x49, 0x79, 0x41, 0x3E },                                           // '@'
+    { 0x7E, 0x11, 0x11, 0x11, 0x7E },                                           // 'A'
+    { 0x7F, 0x49, 0x49, 0x49, 0x36 },                                           // 'B'
+    { 0x3E, 0x41, 0x41, 0x41, 0x22 },                                           // 'C'
+    { 0x7F, 0x41, 0x41, 0x22, 0x1C },                                           // 'D'
+    { 0x7F, 0x49, 0x49, 0x49, 0x41 },                                           // 'E'
+    { 0x7F, 0x09, 0x09, 0x01, 0x01 },                                           // 'F'
+    { 0x3E, 0x41, 0x41, 0x51, 0x32 },                                           // 'G'
+    { 0x7F, 0x08, 0x08, 0x08, 0x7F },                                           // 'H'
+    { 0x00, 0x41, 0x7F, 0x41, 0x00 },                                           // 'I'
+    { 0x20, 0x40, 0x41, 0x3F, 0x01 },                                           // 'J'
+    { 0x7F, 0x08, 0x14, 0x22, 0x41 },                                           // 'K'
+    { 0x7F, 0x40, 0x40, 0x40, 0x40 },                                           // 'L'
+    { 0x7F, 0x02, 0x04, 0x02, 0x7F },                                           // 'M'
+    { 0x7F, 0x04, 0x08, 0x10, 0x7F },                                           // 'N'
+    { 0x3E, 0x41, 0x41, 0x41, 0x3E },                                           // 'O'
+    { 0x7F, 0x09, 0x09, 0x09, 0x06 },                                           // 'P'
+    { 0x3E, 0x41, 0x51, 0x21, 0x5E },                                           // 'Q'
+    { 0x7F, 0x09, 0x19, 0x29, 0x46 },                                           // 'R'
+    { 0x46, 0x49, 0x49, 0x49, 0x31 },                                           // 'S'
+    { 0x01, 0x01, 0x7F, 0x01, 0x01 },                                           // 'T'
+    { 0x3F, 0x40, 0x40, 0x40, 0x3F },                                           // 'U'
+    { 0x1F, 0x20, 0x40, 0x20, 0x1F },                                           // 'V'
+    { 0x7F, 0x20, 0x18, 0x20, 0x7F },                                           // 'W'
+    { 0x63, 0x14, 0x08, 0x14, 0x63 },                                           // 'X'
+    { 0x03, 0x04, 0x78, 0x04, 0x03 },                                           // 'Y'
+    { 0x61, 0x51, 0x49, 0x45, 0x43 },                                           // 'Z'
+    { 0x00, 0x00, 0x7F, 0x41, 0x41 },                                           // '['
+    { 0x02, 0x04, 0x08, 0x10, 0x20 },                                           // '\'
+    { 0x41, 0x41, 0x7F, 0x00, 0x00 },                                           // ']'
+    { 0x04, 0x02, 0x01, 0x02, 0x04 },                                           // '^'
+    { 0x40, 0x40, 0x40, 0x40, 0x40 },                                           // '_'
+    { 0x00, 0x01, 0x02, 0x04, 0x00 },                                           // '`'
+    { 0x20, 0x54, 0x54, 0x54, 0x78 },                                           // 'a'
+    { 0x7F, 0x48, 0x44, 0x44, 0x38 },                                           // 'b'
+    { 0x38, 0x44, 0x44, 0x44, 0x20 },                                           // 'c'
+    { 0x38, 0x44, 0x44, 0x48, 0x7F },                                           // 'd'
+    { 0x38, 0x54, 0x54, 0x54, 0x18 },                                           // 'e'
+    { 0x08, 0x7E, 0x09, 0x01, 0x02 },                                           // 'f'
+    { 0x08, 0x14, 0x54, 0x54, 0x3C },                                           // 'g'
+    { 0x7F, 0x08, 0x04, 0x04, 0x78 },                                           // 'h'
+    { 0x00, 0x44, 0x7D, 0x40, 0x00 },                                           // 'i'
+    { 0x20, 0x40, 0x44, 0x3D, 0x00 },                                           // 'j'
+    { 0x00, 0x7F, 0x10, 0x28, 0x44 },                                           // 'k'
+    { 0x00, 0x41, 0x7F, 0x40, 0x00 },                                           // 'l'
+    { 0x7C, 0x04, 0x18, 0x04, 0x78 },                                           // 'm'
+    { 0x7C, 0x08, 0x04, 0x04, 0x78 },                                           // 'n'
+    { 0x38, 0x44, 0x44, 0x44, 0x38 },                                           // 'o'
+    { 0x7C, 0x14, 0x14, 0x14, 0x08 },                                           // 'p'
+    { 0x08, 0x14, 0x14, 0x18, 0x7C },                                           // 'q'
+    { 0x7C, 0x08, 0x04, 0x04, 0x08 },                                           // 'r'
+    { 0x48, 0x54, 0x54, 0x54, 0x20 },                                           // 's'
+    { 0x04, 0x3F, 0x44, 0x40, 0x20 },                                           // 't'
+    { 0x3C, 0x40, 0x40, 0x20, 0x7C },                                           // 'u'
+    { 0x1C, 0x20, 0x40, 0x20, 0x1C },                                           // 'v'
+    { 0x3C, 0x40, 0x30, 0x40, 0x3C },                                           // 'w'
+    { 0x44, 0x28, 0x10, 0x28, 0x44 },                                           // 'x'
+    { 0x0C, 0x50, 0x50, 0x50, 0x3C },                                           // 'y'
+    { 0x44, 0x64, 0x54, 0x4C, 0x44 },                                           // 'z'
+    { 0x00, 0x08, 0x36, 0x41, 0x00 },                                           // '{'
+    { 0x00, 0x00, 0x7F, 0x00, 0x00 },                                           // '|'
+    { 0x00, 0x41, 0x36, 0x08, 0x00 },                                           // '}'
+    { 0x08, 0x04, 0x08, 0x10, 0x08 }                                            // '~'
 };
 
 static u8 
 FontStrLen(char const* String) 
 {
     char const* StringPtr = String;
-    u8 Result = 0;
+    u16 Result = 0;
 
     for ( ; *StringPtr; ++StringPtr);
 
-    Result = (u8) (StringPtr - String);
+    Result = (u16) (StringPtr - String);
 
     return NCUI_CLAMP_TOP(Result, 0xFF);
 }
@@ -494,11 +518,13 @@ FontStrWidth(char const* String)
     u8 StringLength = FontStrLen(String);
 
     return StringLength 
-        ? (u8) (StringLength * FONT_ADVANCE - 1) 
+        ? (u8) (StringLength * NCUI_FONT_ADVANCE - 1) 
         : 0;
 }
 
-static u32 
+// NOTE: FNV-1A hashing strategy
+//     : See https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function
+static u32
 Hash(u32 Seed, char const* String, u8 StringLength) 
 {
     u32 Result = 2166136261U ^ Seed;
@@ -524,6 +550,7 @@ UIRectIntersect(UIRect RectA, UIRect RectB)
     return Result;
 }
 
+// NOTE: Given a UIState and a UIKey, allocate a UIBox into the UI tree
 static UIBox* 
 UIBoxAlloc(UIState* State, UIKey Key) 
 {
@@ -559,7 +586,7 @@ UIBoxAlloc(UIState* State, UIKey Key)
     Result->HeadBuildIndex = State->BuildIndex;
     Result->TailBuildIndex = State->BuildIndex;
 
-    u8 SlotIndex = (u8) (Key.V % UI_BOX_HASH_SLOTS);
+    u8 SlotIndex = (u8) (Key.V % NCUI_BOX_HASH_SLOTS);
     UIHashSlot* Slot = &State->HashSlots[SlotIndex];
 
     Result->HashPrev = Slot->Tail;
@@ -575,11 +602,12 @@ UIBoxAlloc(UIState* State, UIKey Key)
     return Result;
 }
 
+// NOTE: Given a UIState release the UIBox at position Index from the UI tree.
 static void 
 UIBoxRelease(UIState* State, u8 Index) 
 {
     UIBox* Box = &State->Boxes[Index];
-    u8 SlotIndex = (u8) (Box->Key.V % UI_BOX_HASH_SLOTS);
+    u8 SlotIndex = (u8) (Box->Key.V % NCUI_BOX_HASH_SLOTS);
     UIHashSlot* Slot = &State->HashSlots[SlotIndex];
 
     if (Box->HashPrev != EMPTY_UI_INDEX_VALUE)
@@ -599,6 +627,8 @@ UIBoxRelease(UIState* State, u8 Index)
     --State->BoxesCount;
 }
 
+// NOTE: Check through queued UIEvents and get UISignal for any pertaining to
+//     : a given UIBox
 static UISignal 
 SignalFromBox(UIState* State, UIBox* Box) 
 {
@@ -616,7 +646,7 @@ SignalFromBox(UIState* State, UIBox* Box)
     if (IsActive) 
         Sig.Kind |= UI_SIGNAL_ACTIVE;
 
-    for (u8 Index = 0; Index < UI_MAX_EVENTS; ++Index) {
+    for (u8 Index = 0; Index < NCUI_MAX_EVENTS; ++Index) {
         UIEvent* Event = &State->Events[Index];
 
         if (Event->Kind == UI_EVENT_NONE) 
@@ -712,8 +742,8 @@ UILayoutRoot(UIState* State, u8 RootIndex)
                 Box->FixedSize[Axis] = (u8) Box->PreferredSize[Axis].Value;
             } else if (Box->PreferredSize[Axis].Kind == UI_SIZE_KIND_TEXT_CONTENT) {
                 Box->FixedSize[Axis] = (Axis == AXIS_2D_X) 
-                    ? (Box->StringLength * FONT_ADVANCE) 
-                    : FONT_LINE_HEIGHT;
+                    ? (Box->StringLength * NCUI_FONT_ADVANCE) 
+                    : NCUI_FONT_LINE_HEIGHT;
             }
         }
     }
@@ -853,13 +883,13 @@ UIInit(UIState* State, u16 Width, u16 Height)
     State->Banks = (Height + 7) / 8;
     State->BufferSize = Width * State->Banks;
 
-    for (u8 Index = 0; Index < UI_BOX_HASH_SLOTS; ++Index) {
+    for (u8 Index = 0; Index < NCUI_BOX_HASH_SLOTS; ++Index) {
         State->HashSlots[Index].Head = EMPTY_UI_INDEX_VALUE;
         State->HashSlots[Index].Tail = EMPTY_UI_INDEX_VALUE;
     }
 
-    for (u8 Index = 0; Index < UI_MAX_BOXES; ++Index) {
-        State->Boxes[Index].HashNext = (Index + 1 < UI_MAX_BOXES) 
+    for (u8 Index = 0; Index < NCUI_MAX_BOXES; ++Index) {
+        State->Boxes[Index].HashNext = (Index + 1 < NCUI_MAX_BOXES) 
             ? (Index + 1) 
             : EMPTY_UI_INDEX_VALUE;
         State->Boxes[Index].HashPrev = EMPTY_UI_INDEX_VALUE;
@@ -871,13 +901,13 @@ UIInit(UIState* State, u16 Width, u16 Height)
         State->Boxes[Index].Key = EMPTY_UI_KEY_VALUE;
     }
 
-    for (u8 Index = 0; Index < UI_ANIMATION_HASH_SLOTS_COUNT; ++Index) {
+    for (u8 Index = 0; Index < NCUI_ANIMATION_HASH_SLOTS_COUNT; ++Index) {
         State->AnimationHashSlots[Index].Head = EMPTY_UI_INDEX_VALUE;
         State->AnimationHashSlots[Index].Tail = EMPTY_UI_INDEX_VALUE;
     }
 
-    for (u8 Index = 0; Index < UI_MAX_ANIMATIONS; ++Index) {
-        State->AnimationNodes[Index].HashNext = (Index + 1 < UI_MAX_ANIMATIONS) 
+    for (u8 Index = 0; Index < NCUI_MAX_ANIMATIONS; ++Index) {
+        State->AnimationNodes[Index].HashNext = (Index + 1 < NCUI_MAX_ANIMATIONS) 
             ? (Index + 1) 
             : EMPTY_UI_INDEX_VALUE;
         State->AnimationNodes[Index].HashPrev = EMPTY_UI_INDEX_VALUE;
@@ -906,7 +936,7 @@ UIBeginBuild(UIState* State)
 NCUI_DEF void 
 UIEndBuild(UIState* State) 
 {
-    for (u8 SlotIndex = 0; SlotIndex < UI_BOX_HASH_SLOTS; ++SlotIndex) {
+    for (u8 SlotIndex = 0; SlotIndex < NCUI_BOX_HASH_SLOTS; ++SlotIndex) {
         u8 BoxIndex = State->HashSlots[SlotIndex].Head;
 
         while (BoxIndex != EMPTY_UI_INDEX_VALUE) {
@@ -914,7 +944,7 @@ UIEndBuild(UIState* State)
             u8 NextIndex = Box->HashNext;
 
             if (
-                Box->TailBuildIndex + UI_STALE_FRAMES < State->BuildIndex || 
+                Box->TailBuildIndex + NCUI_STALE_FRAMES < State->BuildIndex || 
                 Box->Key.V == EMPTY_UI_KEY_VALUE.V
             ) {
                 UIBoxRelease(State, BoxIndex);
@@ -926,7 +956,7 @@ UIEndBuild(UIState* State)
 
     for (
         u8 SlotIndex = 0; 
-        SlotIndex < UI_ANIMATION_HASH_SLOTS_COUNT; 
+        SlotIndex < NCUI_ANIMATION_HASH_SLOTS_COUNT; 
         ++SlotIndex
     ) {
         for (
@@ -939,7 +969,7 @@ UIEndBuild(UIState* State)
             Next = Node->HashNext;
 
             if (
-                Node->LastTouchedBuildIndex + UI_STALE_FRAMES < State->BuildIndex || 
+                Node->LastTouchedBuildIndex + NCUI_STALE_FRAMES < State->BuildIndex || 
                 Node->Key.V == EMPTY_UI_KEY_VALUE.V
             ) {
                 if (Node->HashPrev != EMPTY_UI_INDEX_VALUE)
@@ -961,7 +991,7 @@ UIEndBuild(UIState* State)
         }
     }
 
-    for (u8 EventIndex = 0; EventIndex < UI_MAX_EVENTS; ++EventIndex) {
+    for (u8 EventIndex = 0; EventIndex < NCUI_MAX_EVENTS; ++EventIndex) {
         UIEvent* Event = &State->Events[EventIndex];
 
         if (Event->Kind == UI_EVENT_NONE) 
@@ -982,7 +1012,7 @@ UIEndBuild(UIState* State)
 
     u8 RootIndex = EMPTY_UI_INDEX_VALUE;
 
-    for (u8 Index = 0; Index < UI_MAX_BOXES; ++Index) {
+    for (u8 Index = 0; Index < NCUI_MAX_BOXES; ++Index) {
         if (
             State->Boxes[Index].Key.V != EMPTY_UI_KEY_VALUE.V && 
             State->Boxes[Index].Parent == EMPTY_UI_INDEX_VALUE
@@ -1012,7 +1042,7 @@ UIAnimate(UIState *State, UIKey Key, u8 Target, u8 Initial, u8 RateShift)
     if (Key.V == EMPTY_UI_KEY_VALUE.V) 
         return Target;
 
-    u8 SlotIndex = (u8) (Key.V % UI_ANIMATION_HASH_SLOTS_COUNT);
+    u8 SlotIndex = (u8) (Key.V % NCUI_ANIMATION_HASH_SLOTS_COUNT);
     UIHashSlot* Slot = &State->AnimationHashSlots[SlotIndex];
     u8 NodeIndex = Slot->Head;
     UIAnimationNode* Node = NULL;
@@ -1066,14 +1096,14 @@ UIAnimate(UIState *State, UIKey Key, u8 Target, u8 Initial, u8 RateShift)
 NCUI_DEF void 
 UIPushEvent(UIState* State, UIEventKind Kind, UIInputKind Input) 
 {
-    if (State->EventsCount >= UI_MAX_EVENTS) 
+    if (State->EventsCount >= NCUI_MAX_EVENTS) 
         return;
 
     UIEvent* Event = &State->Events[State->TailEvent];
 
     Event->Kind = Kind;
     Event->Input = Input;
-    State->TailEvent = (State->TailEvent + 1) % UI_MAX_EVENTS;
+    State->TailEvent = (State->TailEvent + 1) % NCUI_MAX_EVENTS;
     ++State->EventsCount;
 }
 
@@ -1091,7 +1121,7 @@ UIBoxFromKey(UIState* State, UIKey Key)
     if (Key.V == EMPTY_UI_KEY_VALUE.V) 
         return Result;
 
-    u8 SlotIndex = (u8) (Key.V % UI_BOX_HASH_SLOTS);
+    u8 SlotIndex = (u8) (Key.V % NCUI_BOX_HASH_SLOTS);
     u8 BoxIndex = State->HashSlots[SlotIndex].Head;
 
     while (BoxIndex != EMPTY_UI_INDEX_VALUE) {
@@ -1167,7 +1197,7 @@ UIBuildBoxFromStr(UIState* State, UIBoxFlags Flags, char const* String)
 NCUI_DEF void 
 UIPushParent(UIState* State, UIBox* Box) 
 {
-    if (State->ParentStackDepth < UI_MAX_STACK_DEPTH)
+    if (State->ParentStackDepth < NCUI_MAX_STACK_DEPTH)
         State->ParentStack[State->ParentStackDepth++] = (u8) (Box - State->Boxes);
 }
 
@@ -1190,7 +1220,7 @@ UIHeadParent(UIState* State)
 NCUI_DEF void 
 UIPushPreferredWidth(UIState* State, UISize Size) 
 {
-    if (State->PreferredWidthStackDepth < UI_MAX_STACK_DEPTH)
+    if (State->PreferredWidthStackDepth < NCUI_MAX_STACK_DEPTH)
         State->PreferredWidthStack[State->PreferredWidthStackDepth++] = Size;
 }
 
@@ -1204,7 +1234,7 @@ UIPopPreferredWidth(UIState* State)
 NCUI_DEF void 
 UIPushPreferredHeight(UIState* State, UISize Size) 
 {
-    if (State->PreferredHeightStackDepth < UI_MAX_STACK_DEPTH)
+    if (State->PreferredHeightStackDepth < NCUI_MAX_STACK_DEPTH)
         State->PreferredHeightStack[State->PreferredHeightStackDepth++] = Size;
 }
 
@@ -1218,7 +1248,7 @@ UIPopPreferredHeight(UIState* State)
 NCUI_DEF void 
 UIPushChildLayoutAxis(UIState* State, Axis2D Axis) 
 {
-    if (State->ChildLayoutAxisStackDepth < UI_MAX_STACK_DEPTH)
+    if (State->ChildLayoutAxisStackDepth < NCUI_MAX_STACK_DEPTH)
         State->ChildLayoutAxisStack[State->ChildLayoutAxisStackDepth++] = Axis;
 }
 
@@ -1567,17 +1597,17 @@ DrawBorderRect(UIState* State, u8* Buffer, u8 X0, u8 Y0, u8 X1, u8 Y1)
 NCUI_DEF NCUI_ATTR void 
 DrawChar(UIState* State, u8* Buffer, u8 X, u8 Y, char Char) 
 {
-    if (Char < FONT_FIRST_CHAR || Char > FONT_LAST_CHAR) 
+    if (Char < NCUI_FONT_FIRST_CHAR || Char > NCUI_FONT_LAST_CHAR) 
         return;
 
-    u8 const* Glyph = FONT_BYTES[Char - FONT_FIRST_CHAR];
+    u8 const* Glyph = FONT_BYTES[Char - NCUI_FONT_FIRST_CHAR];
     u8 Bank = Y >> 3;
     u8 Bit = Y & 7;
 
     if (!Bit) {
         u8* Row = Buffer + Bank * State->Width + X;
 
-        for (u8 Column = 0; Column < FONT_GLYPH_WIDTH; ++Column) {
+        for (u8 Column = 0; Column < NCUI_FONT_GLYPH_WIDTH; ++Column) {
             if (X + Column >= State->Width) 
                 break;
 
@@ -1589,7 +1619,7 @@ DrawChar(UIState* State, u8* Buffer, u8 X, u8 Y, char Char)
         if (Bank + 1 < State->Banks) {
             u8* BottomRow = Buffer + (Bank + 1) * State->Width + X;
 
-            for (u8 Column = 0; Column < FONT_GLYPH_WIDTH; ++Column) {
+            for (u8 Column = 0; Column < NCUI_FONT_GLYPH_WIDTH; ++Column) {
                 if (X + Column >= State->Width) 
                     break;
 
@@ -1597,7 +1627,7 @@ DrawChar(UIState* State, u8* Buffer, u8 X, u8 Y, char Char)
                 BottomRow[Column] |= (Glyph[Column] >> (8 - Bit));
             }
         } else {
-            for (u8 Column = 0; Column < FONT_GLYPH_WIDTH; ++Column) {
+            for (u8 Column = 0; Column < NCUI_FONT_GLYPH_WIDTH; ++Column) {
                 if (X + Column >= State->Width) 
                     break;
 
@@ -1610,17 +1640,17 @@ DrawChar(UIState* State, u8* Buffer, u8 X, u8 Y, char Char)
 NCUI_DEF NCUI_ATTR void 
 DrawCharClipped(UIState* State, u8* Buffer, u8 X, u8 Y, char Char, UIRect Clip) 
 {
-    if (Char < FONT_FIRST_CHAR || Char > FONT_LAST_CHAR) 
+    if (Char < NCUI_FONT_FIRST_CHAR || Char > NCUI_FONT_LAST_CHAR) 
         return;
 
-    u8 const* Glyph = FONT_BYTES[Char - FONT_FIRST_CHAR];
+    u8 const* Glyph = FONT_BYTES[Char - NCUI_FONT_FIRST_CHAR];
     u8 Bank = Y >> 3;
     u8 Bit = Y & 7;
 
     if (!Bit) {
         u8* Row = Buffer + Bank * State->Width + X;
 
-        for (u8 Column = 0; Column < FONT_GLYPH_WIDTH; ++Column) {
+        for (u8 Column = 0; Column < NCUI_FONT_GLYPH_WIDTH; ++Column) {
             u8 PX = X + Column;
 
             if (PX < Clip.X0 || PX > Clip.X1) 
@@ -1637,7 +1667,7 @@ DrawCharClipped(UIState* State, u8* Buffer, u8 X, u8 Y, char Char, UIRect Clip)
         if (Bank + 1 < State->Banks) {
             u8* BottomRow = Buffer + (Bank + 1) * State->Width + X;
 
-            for (u8 Column = 0; Column < FONT_GLYPH_WIDTH; ++Column) {
+            for (u8 Column = 0; Column < NCUI_FONT_GLYPH_WIDTH; ++Column) {
                 u8 PX = X + Column;
 
                 if (PX < Clip.X0 || PX > Clip.X1) 
@@ -1650,7 +1680,7 @@ DrawCharClipped(UIState* State, u8* Buffer, u8 X, u8 Y, char Char, UIRect Clip)
                 BottomRow[Column] |= (Glyph[Column] >> (8 - Bit));
             }
         } else {
-            for (u8 Column = 0; Column < FONT_GLYPH_WIDTH; ++Column) {
+            for (u8 Column = 0; Column < NCUI_FONT_GLYPH_WIDTH; ++Column) {
                 u8 PX = X + Column;
 
                 if (PX < Clip.X0 || PX > Clip.X1) 
@@ -1668,17 +1698,17 @@ DrawCharClipped(UIState* State, u8* Buffer, u8 X, u8 Y, char Char, UIRect Clip)
 NCUI_DEF NCUI_ATTR void 
 DrawCharInverted(UIState* State, u8* Buffer, u8 X, u8 Y, char Char) 
 {
-    if (Char < FONT_FIRST_CHAR || Char > FONT_LAST_CHAR) 
+    if (Char < NCUI_FONT_FIRST_CHAR || Char > NCUI_FONT_LAST_CHAR) 
         return;
 
-    u8 const* Glyph = FONT_BYTES[Char - FONT_FIRST_CHAR];
+    u8 const* Glyph = FONT_BYTES[Char - NCUI_FONT_FIRST_CHAR];
     u8 Bank = Y >> 3;
     u8 Bit = Y & 7;
 
     if (!Bit) {
         u8* Row = Buffer + Bank * State->Width + X;
 
-        for (u8 Column = 0; Column < FONT_GLYPH_WIDTH; ++Column) {
+        for (u8 Column = 0; Column < NCUI_FONT_GLYPH_WIDTH; ++Column) {
             if (X + Column >= State->Width) 
                 break;
 
@@ -1690,7 +1720,7 @@ DrawCharInverted(UIState* State, u8* Buffer, u8 X, u8 Y, char Char)
         if (Bank + 1 < State->Banks) {
             u8* BottomRow = Buffer + (Bank + 1) * State->Width + X;
 
-            for (u8 Column = 0; Column < FONT_GLYPH_WIDTH; ++Column) {
+            for (u8 Column = 0; Column < NCUI_FONT_GLYPH_WIDTH; ++Column) {
                 if (X + Column >= State->Width) 
                     break;
 
@@ -1698,7 +1728,7 @@ DrawCharInverted(UIState* State, u8* Buffer, u8 X, u8 Y, char Char)
                 BottomRow[Column] &= ~(Glyph[Column] >> (8 - Bit));
             }
         } else {
-            for (u8 Column = 0; Column < FONT_GLYPH_WIDTH; ++Column) {
+            for (u8 Column = 0; Column < NCUI_FONT_GLYPH_WIDTH; ++Column) {
                 if (X + Column >= State->Width) 
                     break;
 
@@ -1711,17 +1741,17 @@ DrawCharInverted(UIState* State, u8* Buffer, u8 X, u8 Y, char Char)
 NCUI_DEF NCUI_ATTR void 
 DrawCharInvertedClipped(UIState* State, u8* Buffer, u8 X, u8 Y, char Char, UIRect Clip) 
 {
-    if (Char < FONT_FIRST_CHAR || Char > FONT_LAST_CHAR) 
+    if (Char < NCUI_FONT_FIRST_CHAR || Char > NCUI_FONT_LAST_CHAR) 
         return;
 
-    u8 const* Glyph = FONT_BYTES[Char - FONT_FIRST_CHAR];
+    u8 const* Glyph = FONT_BYTES[Char - NCUI_FONT_FIRST_CHAR];
     u8 Bank = Y >> 3;
     u8 Bit = Y & 7;
 
     if (!Bit) {
         u8* Row = Buffer + Bank * State->Width + X;
 
-        for (u8 Column = 0; Column < FONT_GLYPH_WIDTH; ++Column) {
+        for (u8 Column = 0; Column < NCUI_FONT_GLYPH_WIDTH; ++Column) {
             u8 PX = X + Column;
 
             if (PX < Clip.X0 || PX > Clip.X1) 
@@ -1738,7 +1768,7 @@ DrawCharInvertedClipped(UIState* State, u8* Buffer, u8 X, u8 Y, char Char, UIRec
         if (Bank + 1 < State->Banks) {
             u8* BottomRow = Buffer + (Bank + 1) * State->Width + X;
 
-            for (u8 Column = 0; Column < FONT_GLYPH_WIDTH; ++Column) {
+            for (u8 Column = 0; Column < NCUI_FONT_GLYPH_WIDTH; ++Column) {
                 u8 PX = X + Column;
 
                 if (PX < Clip.X0 || PX > Clip.X1) 
@@ -1751,7 +1781,7 @@ DrawCharInvertedClipped(UIState* State, u8* Buffer, u8 X, u8 Y, char Char, UIRec
                 BottomRow[Column] &= ~(Glyph[Column] >> (8 - Bit));
             }
         } else {
-            for (u8 Column = 0; Column < FONT_GLYPH_WIDTH; ++Column) {
+            for (u8 Column = 0; Column < NCUI_FONT_GLYPH_WIDTH; ++Column) {
                 u8 PX = X + Column;
 
                 if (PX < Clip.X0 || PX > Clip.X1) 
@@ -1772,7 +1802,7 @@ DrawStr(UIState* State, u8* Buffer, u8 X, u8 Y, char const* String)
     for (
         u8 Index = 0; 
         String[Index] && X < State->Width; 
-        ++Index, X += FONT_ADVANCE
+        ++Index, X += NCUI_FONT_ADVANCE
     ) {
         DrawChar(State, Buffer, X, Y, String[Index]);
     }
@@ -1790,9 +1820,9 @@ DrawStrClipped(
     for (
         u8 Index = 0; 
         String[Index] && X < State->Width; 
-        ++Index, X += FONT_ADVANCE
+        ++Index, X += NCUI_FONT_ADVANCE
     ) {
-        if (X + FONT_GLYPH_WIDTH <= Clip.X0) 
+        if (X + NCUI_FONT_GLYPH_WIDTH <= Clip.X0) 
             continue;
 
         if (X > Clip.X1) 
@@ -1808,7 +1838,7 @@ DrawStrInverted(UIState* State, u8* Buffer, u8 X, u8 Y, char const* String)
     for (
         u8 Index = 0; 
         String[Index] && X < State->Width; 
-        ++Index, X += FONT_ADVANCE
+        ++Index, X += NCUI_FONT_ADVANCE
     ) {
         DrawCharInverted(State, Buffer, X, Y, String[Index]);
     }
@@ -1826,9 +1856,9 @@ DrawStrInvertedClipped(
     for (
         u8 Index = 0; 
         String[Index] && X < State->Width; 
-        ++Index, X += FONT_ADVANCE
+        ++Index, X += NCUI_FONT_ADVANCE
     ) {
-        if (X + FONT_GLYPH_WIDTH <= Clip.X0) 
+        if (X + NCUI_FONT_GLYPH_WIDTH <= Clip.X0) 
             continue;
 
         if (X > Clip.X1) 
@@ -1918,13 +1948,13 @@ DrawUI(UIState* State, u8* Buffer)
 {
     ClearDisplay(State, Buffer);
 
-    for (u8 SlotIndex = 0; SlotIndex < UI_BOX_HASH_SLOTS; ++SlotIndex) {
+    for (u8 SlotIndex = 0; SlotIndex < NCUI_BOX_HASH_SLOTS; ++SlotIndex) {
         u8 BoxIndex = State->HashSlots[SlotIndex].Head;
 
         while (BoxIndex != EMPTY_UI_INDEX_VALUE) {
             UIBox* Box = &State->Boxes[BoxIndex];
 
-            if (Box->TailBuildIndex + UI_STALE_FRAMES >= State->BuildIndex) {
+            if (Box->TailBuildIndex + NCUI_STALE_FRAMES >= State->BuildIndex) {
                 UIRect Clip = Box->ClipRect;
 
                 if (!UIRectIsValid(Clip)) {
@@ -1958,8 +1988,8 @@ DrawUI(UIState* State, u8* Buffer)
                     u8 BoxHeight = Rect.Y1 - Rect.Y0 + 1;
                     u8 TextY = Rect.Y0;
 
-                    if (BoxHeight > FONT_GLYPH_HEIGHT)
-                        TextY += (BoxHeight - FONT_GLYPH_HEIGHT) / 2;
+                    if (BoxHeight > NCUI_FONT_GLYPH_HEIGHT)
+                        TextY += (BoxHeight - NCUI_FONT_GLYPH_HEIGHT) / 2;
 
                     u8 TextX = Rect.X0 + 1;
 
